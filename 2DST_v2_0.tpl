@@ -1,0 +1,170 @@
+*PARAMETER
+OD = 667
+SPEED = 80.0
+Hz = (SPEED/3.6) / (3.14*OD/1000.0)
+omega = (6.28*Hz) * (6.28*Hz)
+** [omega : radian/sec]**2 = (2*3.14*Hz)**2
+**************************************************************************
+**** STEP DESCRIPTIONS FOR RIM-FITTING
+**************************************************************************
+*STEP,INC=500,NLGEOM
+1: RIM FITTING
+*STATIC, STABILIZE 
+ 0.1,1.0
+*CONTROLS,PARAMETERS=TIME INCREMENTATION
+ 8, 10, 9, 16, 10, 4, 12, 5, 6, 3
+ 0.50, 0.50, 0.50, 0.85, 0.50, 0.50, 1.50, 0.75  
+*BOUNDARY, AMPLITUDE=RIM_CONTROL                                                                 
+ NRFLANGE,1,,                                                             
+ NRFLANGE,2,,0.10                                                        
+ NRFLANGE,3,6,                                                            
+ NLFLANGE,1,,                                                             
+ NLFLANGE,2,,-0.10                                                       
+ NLFLANGE,3,6,
+*AMPLITUDE, NAME=RIM_CONTROL
+ 0.0, 0.0, 0.1, 0.73, 1.0, 1.0
+*OUTPUT,FIELD,FREQUENCY=100
+*ELEMENT OUTPUT
+ S,SINV,E,ENER,
+*ELEMENT OUTPUT,REBAR
+ S,RBFOR
+*NODE OUTPUT
+ COORD,U,RF,CF,
+*EL FILE, POSITION=CENTROIDAL, FREQUENCY=100
+ S,SINV,E,ENER,
+ EVOL 
+*RESTART,WRITE,FREQUENCY=20
+*END STEP
+**************************************************************************
+**** STEP DESCRIPTIONS FOR INFLATION (100%)
+**************************************************************************
+*STEP,INC=500,NLGEOM
+ 2: INFLATION(100%)
+*STATIC, STABILIZE 
+ 0.1,1.0                                                                 
+*CONTACT CONTROLS, STABILIZE
+*CONTROLS,PARAMETERS=TIME INCREMENTATION
+ 8, 10, 9, 16, 10, 4, 12, 5, 6, 3
+ 0.50, 0.50, 0.50, 0.85, 0.50, 0.50, 1.50, 0.75  
+*DSLOAD
+ PRESS, P, 215820.0
+*OUTPUT,FIELD,FREQUENCY=100
+*ELEMENT OUTPUT
+ S,SINV,E,ENER,
+*ELEMENT OUTPUT,REBAR
+ S,RBFOR
+*NODE OUTPUT
+ COORD,U,RF,CF,
+*CONTACT OUTPUT
+CSTRESS, CDISP,
+*EL FILE, POSITION=CENTROIDAL, FREQUENCY=100
+ S,SINV,E,ENER,
+ EVOL
+*EL FILE, REBAR, FREQUENCY=100
+ S,RBFOR,
+*NODE FILE, FREQUENCY=100
+ COORD,U,RF,CF,
+*RESTART,WRITE,FREQUENCY=20
+*END STEP
+**************************************************************************
+**** STEP DESCRIPTIONS FOR DEFLATION (10%)
+**************************************************************************
+*STEP,INC=500,NLGEOM, NAME=STEP2
+ 3: INFLATION(10%)
+*STATIC
+0.1,1.0
+*CONTACT CONTROLS, STABILIZE
+*CONTROLS,PARAMETERS=TIME INCREMENTATION
+ 8, 10, 9, 16, 10, 4, 12, 5, 6, 3
+ 0.50, 0.50, 0.50, 0.85, 0.50, 0.50, 1.50, 0.75  
+*CHANGE FRICTION,INTERACTION=RIML
+*FRICTION
+ 1.0
+*CHANGE FRICTION,INTERACTION=RIMR
+*FRICTION
+ 1.0
+*DSLOAD, AMPLITUDE=LOAD_CONTROL
+ PRESS, P, 24525.0
+*AMPLITUDE, NAME=LOAD_CONTROL
+ 0.0, 10.0, 1.0, 1.0 
+*OUTPUT,FIELD,FREQUENCY=100
+*ELEMENT OUTPUT
+ S,SINV,E,ENER,
+*ELEMENT OUTPUT,REBAR
+ S,RBFOR
+*NODE OUTPUT
+ COORD,U,RF,CF,
+*CONTACT OUTPUT
+CSTRESS, CDISP,
+*EL FILE, POSITION=CENTROIDAL, FREQUENCY=100
+ S,SINV,E,ENER,
+ EVOL
+*EL FILE, REBAR, FREQUENCY=100
+ S,RBFOR,
+*NODE FILE, FREQUENCY=100
+ COORD,U,RF,CF,
+*RESTART,WRITE,FREQUENCY=20
+*END STEP
+**************************************************************************
+**** STEP DESCRIPTIONS FOR INFLATION (100%) AGAIN
+**************************************************************************
+*STEP,INC=500,NLGEOM
+ 4: INFLATION(100%)
+*STATIC, STABILIZE 
+ 0.1,1.0                                                                 
+*CONTACT CONTROLS, STABILIZE
+*CONTROLS,PARAMETERS=TIME INCREMENTATION
+ 8, 10, 9, 16, 10, 4, 12, 5, 6, 3
+ 0.50, 0.50, 0.50, 0.85, 0.50, 0.50, 1.50, 0.75  
+*DSLOAD
+ PRESS, P, 215820.0
+*OUTPUT,FIELD,FREQUENCY=100
+*ELEMENT OUTPUT
+ S,SINV,E,ENER,
+*ELEMENT OUTPUT,REBAR
+ S,RBFOR
+*NODE OUTPUT
+ COORD,U,RF,CF,
+*CONTACT OUTPUT
+CSTRESS, CDISP,
+*EL FILE, POSITION=CENTROIDAL, FREQUENCY=100
+ S,SINV,E,ENER,
+ EVOL
+*EL FILE, REBAR, FREQUENCY=100
+ S,RBFOR,
+*NODE FILE, FREQUENCY=100
+ COORD,U,RF,CF,
+*RESTART,WRITE,FREQUENCY=20
+*END STEP
+**************************************************************************
+**** STEP DESCRIPTIONS + CENTRIFUGAL FORCE
+**************************************************************************
+*STEP,INC=500,NLGEOM
+ 5: CENTRIFUGAL FORCE
+*STATIC, STABILIZE 
+ 0.1,1.0                                                                 
+*CONTACT CONTROLS, STABILIZE
+*CONTROLS,PARAMETERS=TIME INCREMENTATION
+ 8, 10, 9, 16, 10, 4, 12, 5, 6, 3
+ 0.50, 0.50, 0.50, 0.85, 0.50, 0.50, 1.50, 0.75  
+*DLOAD, OP=NEW
+ ALLELSET, CENTRIF, <omega>, 0.0, 0.0, 0.0,   0.0, 1.0, 0.0
+*OUTPUT,FIELD,FREQUENCY=100
+*ELEMENT OUTPUT
+ S,SINV,E,ENER,
+*ELEMENT OUTPUT,REBAR
+ S,RBFOR
+*NODE OUTPUT
+ COORD,U,RF,CF,
+*CONTACT OUTPUT
+CSTRESS, CDISP,
+*EL FILE, POSITION=CENTROIDAL, FREQUENCY=100
+ S,SINV,E,ENER,
+ EVOL
+*EL FILE, REBAR, FREQUENCY=100
+ S,RBFOR,
+*NODE FILE, FREQUENCY=100
+ COORD,U,RF,CF,
+*RESTART,WRITE,FREQUENCY=20
+*END STEP
+
