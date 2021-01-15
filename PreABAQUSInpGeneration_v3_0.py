@@ -13,7 +13,6 @@ try:
 except: 
     pass 
 
-
 class NODE:
     def __init__(self):
         self.Node = []
@@ -1131,17 +1130,28 @@ def CreateHeatInpFile(path, strInpLine, strSimTask, strSimCode):
     fileNewInp.write(strInpLine)
     fileNewInp.close()  
 
-def EdgeSharingElement(m, Element):
+def EdgeSharingElement(m, Element, show=0):
+
+
     
     for el in Element.Element:
-        if m == el[0]: target=el
+        if m == el[0]: 
+            target=el
+            break 
     tnode=[]
-    for i in range(1, target[6]+1): 
-        if target[i] >0 or target[i]!=0:        tnode.append(target[i])
+    for i, tn in enumerate(target): 
+        if i ==0: continue 
+        if i ==5: break 
+        if tn > 0 and not "" == tn: 
+            tnode.append(tn)
+    mN = len(tnode)
 
-    # print ("Target EL", target)
+    if show ==1: print ("Target EL", target, "Nodes", tnode)
+
+    # print ("Target EL", target, "Nodes", tnode)
 
     MATCH=TIRE.ELEMENT()
+
     for el in Element.Element:
         tmp=[]
         for i in range(1, el[6]+1): 
@@ -1256,7 +1266,15 @@ def CreateSteel(Edge, ga, Node, Element, iNode, iEl, name, sfline=[]):
     createdsteel = []
     createdrubber = []
     for i, edge in enumerate(Edge.Edge):
-        shared = EdgeSharingElement(edge[4], Element)
+        
+        # if edge[4] > 2350 and edge[4] < 2360: show =1 
+        # else : show = 0 
+        
+        shared = EdgeSharingElement(edge[4], Element)#, show=show)
+        # if show==1: 
+        #     for ed in shared.Element: 
+        #         print (edge[4], ": ", ed[0], ed[1])
+
         if i ==0: 
             P1 = AddNode(nodeid, shared.Element[0], edge[0], edge[1], Node, ga)
             AddedNode.append(P1)
@@ -1283,14 +1301,7 @@ def CreateSteel(Edge, ga, Node, Element, iNode, iEl, name, sfline=[]):
                     del(ElementsAtStart.Element[k])
                     continue
                 k += 1
-            # k = 0
-            # while k < len(ElementsAtStart.Element):
-                # for inf in AddedNode:
-                    # if ElementsAtStart.Element[k][0] == inf[1]:         ## delete topping element (ID = inf[1]) 
-                        # del(ElementsAtStart.Element[k])
-                        # k -= 1
-                        # break
-                # k += 1
+
             k = 0
             while k < len(ElementsAtStart.Element): 
                 cnt = 0 
@@ -1482,19 +1493,6 @@ def CreateSteel(Edge, ga, Node, Element, iNode, iEl, name, sfline=[]):
             # for E in ElementsAtEnd.Element:
                 # print (E[0])
             
-            #########################################
-            # k = 0
-            # while k < len(ElementsAtEnd.Element):    ## delete solid elements which contact with membrane 
-                # for inf in AddedNode:
-                    # if ElementsAtEnd.Element[k][0] == inf[1]: 
-                        # print ("DEL",  ElementsAtEnd.Element[k][0], inf[1])
-                        # print (ElementsAtEnd.Element[k][0], ElementsAtEnd.Element[k][1], ElementsAtEnd.Element[k][2], ElementsAtEnd.Element[k][3], ElementsAtEnd.Element[k][4])
-                        # del(ElementsAtEnd.Element[k])
-                        
-                        # k -= 1
-                        # break
-                # k += 1
-            ###########################################
             k = 0
             while k < len(ElementsAtEnd.Element): 
                 cnt = 0 
@@ -1514,13 +1512,13 @@ def CreateSteel(Edge, ga, Node, Element, iNode, iEl, name, sfline=[]):
             ToNode = ['', '']
             # print (">>>", len(ElementsAtEnd.Element))
             # for E in ElementsAtEnd.Element:
-                # print (E[0])
+            #     print (E[0])
             CountMoved = 0
             for start in ElementsAtEnd.Element:
                 tEL = EdgeSharingElement(start[0], Element)
                 # print ("NO", len(tEL.Element), start)
                 # for el in tEL.Element: 
-                    # print ("      %d"%(el[0]))
+                #     print ("      %d"%(el[0]))
                     
                 if len(tEL.Element) == 2: ## the elements are tie couple 
                     targettie = 0 
@@ -1600,8 +1598,8 @@ def CreateSteel(Edge, ga, Node, Element, iNode, iEl, name, sfline=[]):
                                 break 
                         break
                     # else: 
-                        # print (" ll tie elementsss ")
-                        # print ("mch", mch[0], "p3", "p4", P3[1], P4[1])
+                    #     print (" ll tie elementsss ")
+                    #     print ("mch", mch[0], "p3", "p4", P3[1], P4[1])
                         
             if Moved[0] !="": 
                 BetwEL = [AddedNode[len(AddedNode)-1][1], AddedNode[len(AddedNode)-2][1], AddedNode[len(AddedNode)-1][3], Moved[0][5]]
@@ -2078,6 +2076,8 @@ def CreateHeatAnalysisInput(path, jsSns, SolidElset, SolidMat, CalElset, CalMat,
         N2 = Node.NodeByID(edge[1])
         if N1[3] < maxcwh and N2[3] < maxcwh:   LowsideSurfce.append([edge[4], edge[3]])
         else:                                   UppersideSurface.append([edge[4], edge[3]])
+
+
     if steel ==1:
         
         line += "*****************************************************************\n"
@@ -2085,6 +2085,9 @@ def CreateHeatAnalysisInput(path, jsSns, SolidElset, SolidMat, CalElset, CalMat,
         line += "*****************************************************************\n"
         ## ('S', 'ABS401A', '3+9(0.22)+wNT', '4.94E-07', '0.3', '7.77E+03', '1.51342E+11', '1.00E-02', '1.00E-03'
         ## steel/Textile, code, structure, section area, V, ??, E(modulus), Compression_modulus??, Compression_strain??
+
+        # for el in Element.Element:
+        #     print(el)
         
         # print ("A")
         steel = []
@@ -2122,7 +2125,6 @@ def CreateHeatAnalysisInput(path, jsSns, SolidElset, SolidMat, CalElset, CalMat,
                 nid, eid, EL_steel_L, EL_rubber_L = CreateSteel(RFM_L, el[1], Node, Element, nid, eid, el[0], sfline=lstSurfaceLines)
             else:
                 membedge.Sort(item=-1)
-                
                 nid, eid, EL_steel, EL_rubber = CreateSteel(membedge, el[1], Node, Element, nid, eid, el[0], sfline=lstSurfaceLines)
                 
             lstElsetLines += ["*ELSET, ELSET="+el[0]+"\n"]
@@ -2176,18 +2178,7 @@ def CreateHeatAnalysisInput(path, jsSns, SolidElset, SolidMat, CalElset, CalMat,
         imagefilename = strSimCode.split("-")[1] +"-" + strSimCode.split("-")[2] + "-2DMesh.png"
         Helement.Image(Node, imagefilename, dpi=500)
 
-        # print ("Steel Element Generateion", len(Helement.Element))
-        
-        # for el in Helement.Element:
-            # print (el)
-                    
-        # fname = str(nid)+"-NEW.png"
-        # NELr.Image(Node, fname, dpi=500)
 
-    # SUT = Element.Elset("SUT")
-    # SUT.Image(Node, "SUT.png", dpi=300)
-    # BTT = Element.Elset("BTT")
-    # BTT.Image(Node, "BTT.png", dpi=1000)
     Node.DeleteDuplicate()
     line = []
     for l in lstCommentLines: 
@@ -2405,11 +2396,23 @@ def Mesh2DInformation(InpFileName):
                     pass
 
     for i in range(len(Elset.Elset)):
-        for j in range(1, len(Elset.Elset[i])):
-            for k in range(len(Element.Element)):
-                if Elset.Elset[i][j] == Element.Element[k][0]:
-                    Element.Element[k][5] = Elset.Elset[i][0]
-                    break
+        TireRubberComponents, TireCordComponents = TIRE.GET_TIRE_COMPONENT()
+        fd = 0 
+        for name in TireRubberComponents: 
+            if name == Elset.Elset[i][0]: 
+                fd = 1
+                break 
+        if fd ==0: 
+            for name in TireCordComponents: 
+                if name == Elset.Elset[i][0]: 
+                    fd = 1
+                    break 
+        if fd ==1 : 
+            for j in range(1, len(Elset.Elset[i])):
+                for k in range(len(Element.Element)):
+                    if Elset.Elset[i][j] == Element.Element[k][0]:
+                        Element.Element[k][5] = Elset.Elset[i][0]
+                        break
 
     nodes = np.array(Node.Node)
 
@@ -3399,8 +3402,8 @@ def Mesh2DModification(meshfile):
                         # f.write("%8d,"%(int(en)))
                         line += "%8d,"%(int(en))
                         cnt += 1
-            else: 
-                print (len(ix0))
+            # else: 
+            #     print (len(ix0))
 
             enter = 0
         if enter ==0: 
@@ -3666,10 +3669,10 @@ def Mesh2DModification(meshfile):
             if int(i%10) == 0: 
                 f.write("\n")
                 enter=1
-        f.write("%8d,"%(int(el[i])))
-        enter = 0
-    if enter ==0: f.write("\n")
-    # f.write("*NSET, NSET=BDR\n BD_R, BD_L")
+            else: 
+                enter = 0
+                f.write("%8d,"%(int(el[i])))
+        if enter ==0: f.write("\n")
 
 
     f.close()

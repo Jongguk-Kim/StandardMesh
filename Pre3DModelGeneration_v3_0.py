@@ -444,7 +444,7 @@ if __name__=='__main__':
         
         Mesh3DTread = Mesh2DInpFileName[:-4] + '.trd'
         Mesh3DBody = Mesh2DInpFileName[:-4] + '.axi'
-        ImageFile = Mesh2DInpFileName[:-4] + '-2DMesh.png'
+        ImageFile = Mesh2DInpFileName[:-4] + '-Error.png'
         
 
         Mesh2DInp =  Mesh2DInpFileName[:-4]
@@ -740,12 +740,12 @@ if __name__=='__main__':
 
         print ("\n## Processing Time = %5.3f sec [Mesh Reading & Treatment = %5.3f sec, 3D Model Creation = %5.3f sec]"% (D3End - Tstart, Lend-Tstart, D3End-Lend))
     
-    if Plot2DMesh == 1:
-        MasterEdge=Mesh2DScripts.EDGE();     MasterEdge.Combine(BMasters);     MasterEdge.Combine(TMasters)
-        MasterEdges = MasterEdge.Edge
-        Mesh2DScripts.plot_geometry(ImageFile, 0, 0, Element.Element, Node.Node, Elset.Elset, MasterEdges, SlaveEdges, PressureSurface, RimContactSurface, TreadToRoadSurface, TreadBottom, BodyTop, TreadNode)
-        if sns: ErrorFile.writelines('\n* The 2D Mesh Image is created successfully!\n')
-    if sns: ErrorFile.close()
+    # if Plot2DMesh == 1:
+    #     MasterEdge=Mesh2DScripts.EDGE();     MasterEdge.Combine(BMasters);     MasterEdge.Combine(TMasters)
+    #     MasterEdges = MasterEdge.Edge
+    #     Mesh2DScripts.plot_geometry(ImageFile, 0, 0, Element.Element, Node.Node, Elset.Elset, MasterEdges, SlaveEdges, PressureSurface, RimContactSurface, TreadToRoadSurface, TreadBottom, BodyTop, TreadNode)
+    #     if sns: ErrorFile.writelines('\n* The 2D Mesh Image is created successfully!\n')
+    # if sns: ErrorFile.close()
     
     # del (Element)
     # del (Node)

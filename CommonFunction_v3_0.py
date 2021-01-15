@@ -12,6 +12,70 @@ import _islm
 import multiprocessing as mp
 from multiprocessing import Pool
 
+TireRubberComponents = [
+    # 'BEAD_R', 'BEAD_L', # 'BD1' ,  Bead
+    'BD1', 
+    'BEAD_R', 'BEAD_L', 
+    'BEC' , # Belt Edge Cushion
+    'BSW' , # Black SideWall Component
+    'BTT' , # Belt rubber component (associated with BT components)
+    'CCT' , # Carcass rubber component (associated with C components)
+    'SCT' , 
+    'NCT' ,
+    'CHS' ,
+    'CTB' , 'CTR', 'CTB1' , 'CTR1',# Tread Componet
+    'ET'  , # Edge Tape
+    'FIL' , 'BDF', # Bead Filler
+    'HUS' , # Hump Strip
+    'JBT' , # Rubber associated with JFC, JEC components
+    'L11' , 'IL1', # Inner liner component
+    'L12' , 'IL2', # #2 Innerliner
+    'LBF' , # Lower Bead Filler
+    'UBF' , # Upper Bead Filler
+    'RIC' , # Rim Cushion
+    'SIR' , # Sidewall Insert Rubber
+    'SHW' , # Shoulder Wedge
+    'SRTT', # Associated with PK1, PK2, RFM and FLI components
+    'SUT' , 'UTR', 'SUT1' , 'UTR1',# SubTread
+    'TRW' , # Tread Wing
+    
+    'WSW'  # While Sidewall
+]
+TireTreadComponents = [
+    'CTB' , 'CTR',
+    'SUT' , 'UTR',
+    'TRW'
+]
+TireCordComponents = [
+    'C01'  , 'CC1', # Carcass Cord 1 
+    'C02'  , 'CC2', # Carcass Cord 2
+    'C03'  , 'CC3', # Carcass Cord 3 
+    'C04'  , 'CC4', # Carcass Cord 4
+    'BT1'  , # Belt 1 
+    'BT2'  , # Belt 2
+    'BT3'  , # Belt 3
+    'BT4'  , # Belt 4
+    'JFC1' , 'JFC', # Jointless Full Cap 1
+    'JFC2' , # Jointless Full Cap 2
+    'JEC1' , 'JEC', # Jointless Edge Cap 1
+    'OJEC1', # Overlapped Jointless Edge Cap
+    'OJFC1', # Overlapped Jointless Full Cap
+    'PK1'  , # Half Bead Packing
+    'PK2'  , # Full Bead Packing
+    'RFM'  , # Bead S(RFM)
+    'FLI'  , # Bead Flipper
+    'CH1'  , 'CH1_R', 'CH1_L',  # Steel Chafer 
+    'CH2'  , 'CH2_R', 'CH2_L',  # 1st Nylon Chafer
+    'CH3'  , 'CH3_R', 'CH3_L',  # 2nd Nylon Chafer
+    'NCF'  , 'SCF'  , 'NF1'  , 'NF2',
+    'BDC'  , # bead cover 
+    'SPC'    ## spiral coil
+    #'SWS'    # temporary component for Endurance simulation 
+]
+
+def GET_TIRE_COMPONENT(): 
+    return TireRubberComponents, TireCordComponents
+
 class RIMFORCE:
     def __init__(self, rpt_file):
         self.FX = 0.0
@@ -10701,11 +10765,23 @@ def Mesh2DInformation(InpFileName):
                     pass
 
     for i in range(len(Elset.Elset)):
-        for j in range(1, len(Elset.Elset[i])):
-            for k in range(len(Element.Element)):
-                if Elset.Elset[i][j] == Element.Element[k][0]:
-                    Element.Element[k][5] = Elset.Elset[i][0]
-                    break
+        fd = 0 
+        for name in TireRubberComponents: 
+            if name == Elset.Elset[i][0]: 
+                fd = 1
+                break 
+        if fd ==0: 
+            for name in TireCordComponents: 
+                if name == Elset.Elset[i][0]: 
+                    fd = 1
+                    break 
+        if fd ==1 : 
+
+            for j in range(1, len(Elset.Elset[i])):
+                for k in range(len(Element.Element)):
+                    if Elset.Elset[i][j] == Element.Element[k][0]:
+                        Element.Element[k][5] = Elset.Elset[i][0]
+                        break
 
     return Node, Element, Elset, Comments
 
