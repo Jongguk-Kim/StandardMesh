@@ -336,8 +336,6 @@ class InpMaterial:
         if os.path.isfile(wdr+"/density.txt") : 
             with open(wdr+"/density.txt") as DEN: 
                 dens = DEN.readlines()
-
-            
             cmd = ''
             for den in dens: 
                 if "**" in den: 
@@ -414,13 +412,24 @@ class InpMaterial:
             if self.strRawMatCode not in self.lstFECal:
                 self.lstFECal.append(self.strRawMatCode)
 
-        self.strReqType = 'StaticCompound'
+        # self.strReqType = 'StaticCompound'
+        # self.lstFEComProperties = RetrievalData.getData(self.strDBLoc, self.strReqType, self.lstFECom)
+        # self.lstFEComProperties.append(('ABW121A', '4000', '176000000000', '0.3'))
+        self.strReqType = 'StaticCompoundTemp'
+        # elf.lstFEComProperties = (strComName, strComDensity, strComStaticModulus, strComPoisson, strComTanDelta, strComThermalConductivity)
         self.lstFEComProperties = RetrievalData.getData(self.strDBLoc, self.strReqType, self.lstFECom)
-        self.lstFEComProperties.append(('ABW121A', '4000', '176000000000', '0.3'))
+        self.lstFEComProperties.append(('ABW121A', '4000', '176000000000', '0.3', '0.0', '0.3'))
+
+        # print("BD Loc", self.strDBLoc)
+        # print("Req Type", self.strReqType)
+        # print("compd", self.lstFECom)
+        # print ("****************************")
+        # for pro in self.lstFEComProperties:
+        #     print (pro)
+        # print ("****************************")
 
         f=open("Materials.txt", "w")
         f.writelines(str(self.lstFEComProperties))
-        
         
         self.lstElsetFECom.append(('BD1', 'ABW121A'))
         
@@ -428,7 +437,14 @@ class InpMaterial:
         self.lstFECalProperties = RetrievalData.getData(self.strDBLoc, self.strReqType, self.lstFECal)
         f.writelines(str(self.lstFECalProperties))
         f.close()
-
+        # print("BD Loc", self.strDBLoc)
+        # print("Req Type", self.strReqType)
+        # print("Calendar", self.lstFECal)
+        # print ("****************************")
+        # for pro in self.lstFECalProperties:
+        #     print (pro)
+        # print ("****************************")
+        
         if simulation == 'ENDU': 
             with open("SWS_Elements.inp")  as SWS: 
                 lines = SWS.readlines()
@@ -1106,8 +1122,12 @@ def CreateMaterial(ElsetCal, MatCal, ElsetSolid, MatSol):
         for mat in MatSol: 
             if name[1] == mat[0]: 
                 line+= "ELSET="+name[0]+"\n"
-                try:                    line+= "1.0  "+mat[tand_column] + "\n"
-                except:                 line+= "1.0  0.1 \n"
+                if 'BD1' in name[0] : 
+                    line+= "1.0  0.0 \n"
+                else:
+                    try:                    line+= "1.0  "+mat[tand_column] + "\n"
+                    except:                 line+= "1.0  0.1 \n"
+
                 break
     tand_column = 9 ### need to change  to 9 (probably)
                     ### ('T', 'ABM201A', 'N66 840D/2 28EPI', '2.46E-07', '0.4', '8.70E+02', '1.72358E+09', '1.00E-02', '1.00E-03')
@@ -1850,6 +1870,7 @@ def CreateHeatAnalysisInput(path, jsSns, SolidElset, SolidMat, CalElset, CalMat,
                     lstNsetLines.append(line)
                 elif 'MATERIAL' in command[1]:     
                     lstMaterialLines.append(line)
+                    materialName = word[1].split("=")[1].strip()
                     spt = 'MT_n'
                 elif 'DENSITY'in  command[1]:           
                     lstMaterialLines.append(line)
@@ -1875,27 +1896,32 @@ def CreateHeatAnalysisInput(path, jsSns, SolidElset, SolidMat, CalElset, CalMat,
                 if spt == 'MT_d':               lstMaterialLines.append(line)
                 if spt == 'MT_e':
                     lstMaterialLines.append(line)
-                    conductivity_column = 5 ### need to change  to 5 (probably)
-                    ### ('B87', '1218', '5.05E+07', '0.48'), 
+                    ### ('B87', '1218', '5.05E+07', '0.48', tan d, conductivity), 
+                    if 'SWS' in materialName: 
+                        for name in SolidElset:
+                            if "BSW" in name[0] : 
+                                materialName = name[1]
+                                break
+
                     for name in SolidElset:
+                        fd = 0 
                         for mat in SolidMat: 
-                            if name[1] == mat[0]: 
-                                # if "ABW" in mat[0] and "ABW" in name : ABWcount+=1
-                                try:
-                                    cond = str(mat[conductivity_column])
-                                    break
-                                except:
-                                    if 'ABW' in mat[0]:     cond = '0.3'
-                                    else:               cond = '0.22'
-                                    break
-                    line = '*CONDUCTIVITY\n' + cond + "\n"
-                    # if "ABW" in mat[0] and "ABW" in name and ABWcount > 1:    pass
-                    # else:                                                     lstMaterialLines.append(line)
-                    lstMaterialLines.append(line)
+                            if materialName == mat[0]: 
+                                line = '*CONDUCTIVITY\n' + str(mat[5]) + "\n"
+                                lstMaterialLines.append(line)
+                                fd = 1
+                                break
+                        if fd == 1: 
+                            break 
+                        
                 else:
                     pass
 
-    
+    # for mat in SolidMat: 
+    #     print ("Material", mat)
+    # for name in SolidElset:
+    #     print ("ELSET", name)
+
     Mesh2D = strSimCode.split("-")[1]+"-"+strSimCode.split("-")[2]+".inp"
     Mesh2D = strSimCode.split("-")[1]+"-"+strSimCode.split("-")[2]+".msh"
     Node, Element, Elset, commt = TIRE.Mesh2DInformation(path + '/' +Mesh2D)
