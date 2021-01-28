@@ -9,6 +9,8 @@
 # *******************************************************************
 import matplotlib as mpl
 mpl.use('Agg')
+import warnings
+warnings.filterwarnings('ignore') 
 import os, glob, json, CheckExecution
 import sys, string, struct, math, decimal
 import matplotlib.pyplot as plt

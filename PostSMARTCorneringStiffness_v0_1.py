@@ -1,9 +1,11 @@
 # from os import system, getcwd 
-import os 
-from glob import glob
-from json import load  
 try:    import CommonFunction as TIRE
 except: import CommonFunction_v3_0 as TIRE
+
+import os 
+from glob import glob
+import json 
+
 import SMARTDynamicFootshapeForCorneringStiffness as DF 
 import SMARTRollingcharactericsForCorneringStiffness as RC
 
@@ -24,8 +26,10 @@ if __name__ == "__main__":
 
     cwd = os.getcwd()
     snsFile = glob(cwd+"/*.sns")[0]
+    # print(os.path.isfile(snsFile))
+    
     with open(snsFile) as SNS: 
-        snsInfo = load(SNS)
+        snsInfo = json.load(SNS)
     strSimCode = snsInfo["AnalysisInformation"]["SimulationCode"]
     strSimCode = snsFile.split("/")[-1]
     strSimCode = strSimCode[:-4]
@@ -38,7 +42,9 @@ if __name__ == "__main__":
     SmartInpFileName = subFileName + '.inp'
     str2DInp = strSimCode.split("-")[1]+"-"+strSimCode.split("-")[2]+".inp"
 
-    revision = snsFile.split("-")[2]
+    revision = snsFile.split("-")[-3]
+    # print (revision)
+
 
     angles=[]
     simFiles=[]
@@ -70,11 +76,11 @@ if __name__ == "__main__":
         fpc = cwd+"/"+subFileName+'-FPC.txt'
 
 
-        DF.main(sfricFileName=sfric, sfricResultFileName=result, \
-            trdFileName=trd, shistFileName=shist, contourFileName=contour, SlipAngle=slip,\
-            vload=load, ProductLine=product,  CUTEInpFileName=mesh, \
-            pointFileName=point, pressFileName=press, valuesFileName=value,\
-			areaFileName=area,infoFileName=fpc)
+        # DF.main(sfricFileName=sfric, sfricResultFileName=result, \
+        #     trdFileName=trd, shistFileName=shist, contourFileName=contour, SlipAngle=slip,\
+        #     vload=load, ProductLine=product,  CUTEInpFileName=mesh, \
+        #     pointFileName=point, pressFileName=press, valuesFileName=value,\
+		# 	areaFileName=area,infoFileName=fpc)
 
         simCode =  subFileName
         sns = snsFile
@@ -83,8 +89,8 @@ if __name__ == "__main__":
         sdb = cwd+"/"+subFolderName+"/SDB."+subFileName+"/"+subFileName+".sdb"
         sdbresult =cwd+"/"+subFolderName+"/SDB."+subFileName+"/"+subFileName+".sdb" + ResultStep
         smart = smartInputFile
-        RC.main(CorneringStiffnessSimulation=1, iSimCode=simCode, sns=sns, rimfile=rimForce, LossFile=energyLoss,\
-             SDB=sdb, SFRIC=sfric, lastSDB=sdbresult, lastSFRIC=result, mesh=mesh, FPCfile=fpc,smart=smart )
+        # RC.main(CorneringStiffnessSimulation=1, iSimCode=simCode, sns=sns, rimfile=rimForce, LossFile=energyLoss,\
+        #      SDB=sdb, SFRIC=sfric, lastSDB=sdbresult, lastSFRIC=result, mesh=mesh, FPCfile=fpc,smart=smart )
 
     with open(simFiles[0]) as F1: 
         ln1 = F1.readlines()
