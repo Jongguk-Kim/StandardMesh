@@ -515,15 +515,15 @@ class InpMaterial:
         isJBT = 0 
         for self.tupElsetFECom in self.lstElsetFECom:
             if version == '2019' and self.tupElsetFECom[0] == 'JBT' : continue 
-            if self.tupElsetFECom[0] == 'JBT' : 
-                isJBT = 1
-                continue 
+            # if self.tupElsetFECom[0] == 'JBT' : 
+            #     isJBT = 1
+            #     continue 
             self.lstInpLines.append('*SOLID SECTION, ELSET=' + self.tupElsetFECom[0] + ', MATERIAL=' + self.tupElsetFECom[1] + '\n')
-        if isJBT ==1: 
-            for self.tupElsetFECom in self.lstElsetFECom:
-                if self.tupElsetFECom[0] == 'BTT': 
-                    self.lstInpLines.append('*SOLID SECTION, ELSET=JBT, MATERIAL=' + self.tupElsetFECom[1] + '\n')
-                    break 
+        # if isJBT ==1: 
+        #     for self.tupElsetFECom in self.lstElsetFECom:
+        #         if self.tupElsetFECom[0] == 'BTT': 
+        #             self.lstInpLines.append('*SOLID SECTION, ELSET=JBT, MATERIAL=' + self.tupElsetFECom[1] + '\n')
+        #             break 
             
         for self.tupPlyInfo in self.lstPlyInfo:
             self.lstInpLines.append('******************** ' + self.tupPlyInfo[0] + ' ********************\n')
