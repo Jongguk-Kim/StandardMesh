@@ -3808,9 +3808,13 @@ def GetODSWfromDeformedNode(DeformedNode, Element, Node, ResultOption=1, Offset=
             if msw2 > lng: 
                 msw2 = lng
                 ssw2 = n
+                
     
     print ("** Carcass SW = %fmm, Carcass Base Tire SW=%f" % ( abs(sw1[2]-sw2[2])*1000, abs(ssw1[2]-ssw2[2])*1000)  )
-    
+    f=open("sw.tmp", 'w')
+    f.write("sw=%.6f\n"%( abs(ssw1[2]-ssw2[2]) ))
+    f.write("posY=%.6f\n"%(ssw2[3]))
+    f.close()
     ##################################################################
     DeformedSW = abs(MaxY- MinY)
     DeformedOD = abs(TopZ - BotZ)
@@ -3983,6 +3987,59 @@ def CalculateTireInnerVolume(Outeredge_Or_Element, DeformedTopSectionNode,  **ar
         return  result[0] * 2 * math.pi * result[2], toenode 
     else: 
         return  result[0] * 2 * math.pi * result[2] 
+
+def TBR_TL_Alpha(edge_outer, node, rimDia=0): 
+    npn = np.array(node.Node)
+    edges = edge_outer.Edge
+    bdring=EDGE()
+    for edge in edges:
+        ix = np.where(npn[:,0]==edge[0])[0][0]
+        ix1 = np.where(npn[:,0]==edge[1])[0][0]
+        if npn[ix][2] > 0 and edge[2] == 'HUS' and npn[ix][3] >= rimDia/2000.0 and npn[ix1][3] >= rimDia/2000.0: 
+            bdring.Add(edge)
+
+    bdring.Sort()
+    
+    for i, edge in enumerate(bdring.Edge):
+        if i ==0: continue 
+        ix = np.where(npn[:,0]==edge[0])[0][0]
+        ix1 = np.where(npn[:,0]==edge[1])[0][0]
+        ix0 = np.where(npn[:,0]==bdring.Edge[i-1][1])[0][0]
+        n0 = npn[ix0]
+        n1 = npn[ix]
+        n2 = npn[ix1]
+
+        x1 = n0[2]; x2=n1[2]; x3=n2[2]
+        y1 = n0[3]; y2=n1[3]; y3=n2[3]
+
+        A = x1*(y2-y3) - y1 *(x2-x3) + x2*y3 - x3*y2
+        B = (x1*x1 + y1*y1)*(y3-y2) +(x2**2 + y2**2)*(y1-y3) + (x3**2+y3**2)*(y2-y1)
+        C = (x1**2 + y1**2)*(x2-x3)+(x2**2+y2**2)*(x3-x1) + (x3*x3 + y3*y3)*(x1-x2)
+        D = (x1*x1 + y1*y1)*(x3*y2-x2*y3)+(x2*x2+y2*y2)*(x1*y3-x3*y1)+(x3*x3+y3*y3)*(x2*y1-x1*y2)
+        SQRT = B*B + C*C - 4*A*D  
+
+        if A == 0 or SQRT < 0.0: ## make line 
+            if n1[3] > n2[3]: 
+                N1= n2;  N2= n1 
+            else: 
+                N1= n1;  N2= n2
+            print (" TBR BeadRing A-Angle : LINE : %.5f, %.5f"%(A, SQRT) )
+            break 
+        else:
+            cx = -B/A/2.0
+            cy = -C/A/2.0
+            R = math.sqrt(SQRT) / 2/abs(A)
+            if R > 5.0: ## line 
+                if n1[3] > n2[3]: 
+                    N1= n2;  N2= n1 
+                else: 
+                    N1= n1;  N2= n2 
+                print (" TBR BeadRing A-Angle : Radius=%.1f"%(R*1000))
+                break 
+    
+    NS = [0, 0, N1[2]+1.0, N1[3]]
+
+    return math.degrees(Angle_3nodes(NS, N1, N2, xy=23))
 
 ##//////////////////////////////////////
 
@@ -4612,6 +4669,239 @@ def GetDOEFileName():
 ## PLOT Functions
 ########################################
 
+def plot_DetailLayout(filename, Element, Node, dpi=200, AddingNodes=[], rim=[], group='PCR', beadring='Tubeless'):# , Elset):
+    
+    edge_Outer = Element.OuterEdge(Node)
+
+    for el in Element.Element:
+        if el[6] ==2:
+            edge =[el[1], el[2], el[5], 'S0', el[0], el[7]]
+            edge_Outer.Add(edge)
+
+
+    BDR  = Element.Elset("BEAD_R")
+    BDL = Element.Elset("BEAD_L")
+    if len(BDL.Element) ==0:
+        i=0
+        while i < len(BDR.Element):
+            if BDR.Element[i][8] > 0:
+                BDL.Add(BDR.Element[i])
+                del(BDR.Element[i])
+                i-=1
+            i += 1
+    if len(BDR.Element) ==0:
+        i=0
+        while i < len(BDL.Element):
+            if BDL.Element[i][8] < 0:
+                BDR.Add(BDL.Element[i])
+                del(BDL.Element[i])
+                i-=1
+            i += 1
+
+    BDedge = BDL.OuterEdge(Node)
+    BDRedge = BDR.OuterEdge(Node)
+    BDedge.Combine(BDRedge)
+    edge_Outer.Combine(BDedge)
+
+    ## OUTER EDGE _ Black line 
+
+    ## rubber 
+
+    npn = np.array(Node.Node)
+    
+    edge_Components = EDGE()
+
+    elsets = ["FIL", 'LBF', 'UBF', 'TRW', 'HUS', 'BEC', 'SIR', 'BDF', 'RIC', 'BSW']
+    for name in elsets:
+        SET = Element.Elset(name)
+        POS=ELEMENT(); NEG=ELEMENT()
+        if len(SET.Element)>0: 
+            for el in SET.Element:
+                ix = np.where(npn[:,0]==el[1])[0][0]
+                if npn[ix][2] > 0: 
+                    POS.Add(el)
+                else:
+                    NEG.Add(el)
+            try:
+                edges = NEG.OuterEdge(Node)
+                edge_Components.Combine(edges)
+                edges = POS.OuterEdge(Node)
+                edge_Components.Combine(edges)
+            except:
+                print(name)
+                sys.exit()
+
+    elsets = ["SUT", "CTB"]
+    for name in elsets:
+        SET = Element.Elset(name)
+        if len(SET.Element)>0: 
+            edges = SET.OuterEdge(Node)
+            edge_Components.Combine(edges)
+
+    ## plotting 
+    fig, ax = plt.subplots()
+    ax.axis('equal')
+    ax.axis('off')
+    
+    LineWidth = 0.5
+    textsize = 8
+
+    color = 'black'
+    for edge in edge_Outer.Edge:
+        ix = np.where(npn[:,0]==edge[0])[0][0]; N1 = npn[ix]
+        ix = np.where(npn[:,0]==edge[1])[0][0]; N2 = npn[ix]
+        plt.plot([N1[2], N2[2]], [N1[3], N2[3]], color, lw=LineWidth)
+    color = 'gray'
+    for edge in edge_Components.Edge:
+        ix = np.where(npn[:,0]==edge[0])[0][0]; N1 = npn[ix]
+        ix = np.where(npn[:,0]==edge[1])[0][0]; N2 = npn[ix]
+        plt.plot([N1[2], N2[2]], [N1[3], N2[3]], color, lw=LineWidth/2)
+
+    nx=[]; ny=[]
+    for nd in AddingNodes:
+        nx.append(nd[2])
+        ny.append(nd[3])
+
+    if len(rim) > 0:
+        RimPoint = rim 
+        if group != 'TBR': 
+            rims=['START, 14.300000,  12.500000',
+                'CIRCL, 17.300000,   9.500000, 14.300000,  9.500000', 
+                'CIRCL,  7.800000,   0.000000,  7.800000,  9.500000',
+                'LINE ,  5.956000,   0.000000',
+                'CIRCL, -0.519266,  -5.933488,  5.956000, -6.500000',
+                'LINE , -2.262376, -25.857332',
+                'CIRCL, -6.921500, -30.411184, -7.243350,-25.421553'
+                ]
+            AddRimsToDrawing(rims, RimPoint, ax)
+            rims=['START, 14.300000,  -12.500000',
+                'CIRCL, 17.300000,   -9.500000, 14.300000,  -9.500000', 
+                'CIRCL,  7.800000,   -0.000000,  7.800000,  -9.500000',
+                'LINE ,  5.956000,   -0.000000',
+                'CIRCL, -0.519266,  5.933488,  5.956000, 6.500000',
+                'LINE , -2.262376, 25.857332',
+                'CIRCL, -6.921500, 30.411184, -7.243350, 25.421553'
+                ]
+        elif beadring == 'Tubeless':
+            rims=[  'START,  10.017000,  20.507000', 
+                    'CIRCL,   3.934092,   0.624717,	 0.000000,  12.700000 ', 
+                    'CIRCL,  -1.316291,  -4.911422,	 6.411000,  -6.982100 ', 
+                    'LINE , -24.593024, -92.774800' 
+                ]
+            AddRimsToDrawing(rims, RimPoint, ax)
+            rims=[  'START,  10.017000,  -20.507000', 
+                    'CIRCL,   3.934092,   -0.624717,	 0.000000,  -12.700000 ', 
+                    'CIRCL,  -1.316291,  4.911422,	 6.411000,  6.982100 ', 
+                    'LINE , -24.593024, 92.774800' 
+                ]
+        else:
+            rims =['START,  28.000000,  16.500000', 
+                    'LINE,   28.000000,  14.000000 ', 
+                    'CIRCL,  14.000000,   0.000000,  14.000000,  14.000000',
+                    'LINE,    7.330650,   0.000000', 
+                    'CIRCL,  -0.638907,  -7.302750,   7.330650,  -8.000000', 
+                    'LINE,   -3.149590, -36.000000  ', 
+                    'CIRCL,  -6.559574, -41.876208, -11.119148, -35.302754' 
+                    ]
+            AddRimsToDrawing(rims, RimPoint, ax)
+            rims =['START,  28.000000,  -16.500000', 
+                    'LINE,   28.000000,  -14.000000 ', 
+                    'CIRCL,  14.000000,   0.000000,  14.000000,  -14.000000',
+                    'LINE,    7.330650,   0.000000', 
+                    'CIRCL,  -0.638907,  7.302750,   7.330650,  8.000000', 
+                    'LINE,   -3.149590, 36.000000  ', 
+                    'CIRCL,  -6.559574, 41.876208, -11.119148, 35.302754' 
+                    ]
+        
+        RimPoint[0] *= -1 
+        AddRimsToDrawing(rims, RimPoint, ax)
+        
+    plt.tight_layout()
+
+    plt.scatter(nx, ny, c='r', s=1.2)
+    plt.savefig(filename, dpi=dpi)
+    plt.clf()        
+
+def Angle_3nodes(n1=[], n2=[], n3=[], xy=0): ## n2 : mid node 
+    v1 = [n1[1]-n2[1], n1[2]-n2[2], n1[3]-n2[3] ]
+    v2 = [n3[1]-n2[1], n3[2]-n2[2], n3[3]-n2[3] ]
+    
+    if xy ==0: 
+        cos = round((v1[0]*v2[0] + v1[1]*v2[1] + v1[2]*v2[2]) /  math.sqrt(v1[0]**2 + v1[1]**2 + v1[2]**2) / math.sqrt(v2[0]**2 + v2[1]**2 + v2[2]**2), 9)
+        angle = math.acos(cos)
+    else: 
+        x = int(xy/10)-1;     y = int(xy%10)-1
+        cos = round((v1[x]*v2[x] + v1[y]*v2[y] ) /  math.sqrt(v1[x]**2 + v1[y]**2 ) / math.sqrt(v2[x]**2 + v2[y]**2), 9)
+        angle = math.acos(cos)
+
+    return angle
+
+def AddRimsToDrawing(rims, RimPoint, ax): 
+    try : 
+        from matplotlib.patches import Arc
+    except:
+        pass 
+
+    for line  in rims: 
+        word = line.split(",")
+        
+        if 'START' in word[0].upper(): 
+            sx = float(word[2])/1000 + RimPoint[0]
+            sy = float(word[1])/1000 + RimPoint[1]
+
+        if 'CIRCL' in word[0].upper(): 
+            ex = float(word[2])/1000 + RimPoint[0]
+            ey = float(word[1])/1000 + RimPoint[1]
+            cx = float(word[4])/1000 + RimPoint[0]
+            cy = float(word[3])/1000 + RimPoint[1]
+            D = math.sqrt((cx-ex)**2 + (cy-ey)**2)*2
+
+            n1 = [0, 0, sx, sy]
+            n2 = [0, 0, cx, cy]
+            n3 = [0, 0, ex, ey]
+            angle = Angle_3nodes(n1, n2, n3, xy=23)
+            
+            cn = [0, 0, cx, cy+ 0.1]
+            if n1[2] > n3[2] : 
+                startangle = Angle_3nodes(n1, n2, cn, xy=23)  * 180.0 / 3.141592  
+                sp = sx 
+            else: 
+                startangle = Angle_3nodes(n3, n2, cn, xy=23)  * 180.0 / 3.141592  
+                sp = ex 
+            if cx < sp: 
+                if startangle >=90: 
+                    startangle = 450.0 - startangle 
+                else: 
+                    startangle = 90.0 - startangle 
+            else: 
+                startangle += 90.0
+
+            if sp > 0: 
+                if ey < cy: 
+                    startangle -= angle*180.0/3.141592
+            if sp < 0: 
+                if sy < cy: 
+                    startangle -= angle*180.0/3.141592
+            
+            arc = Arc((cx, cy), D, D, theta1=0, theta2=angle*180.0/3.141592, angle=startangle, color='black',  linewidth=0.2)
+            ax.add_patch(arc)
+
+            sx = ex
+            sy = ey 
+
+            # print ("CIRCL", cx,cy, ex,ey)
+
+        if 'LINE' in word[0].upper(): 
+            ex = float(word[2])/1000 + RimPoint[0]
+            ey = float(word[1])/1000 + RimPoint[1]
+
+            ax.plot([sx,ex], [sy, ey], color='black', linewidth=0.2 ) 
+            # print ("Line", cx,cy, ex,ey)
+
+            sx = ex
+            sy = ey 
+    
+
 def plot_geometry(imagefile, viewNode, viewElement, Element, Node, Elset, MasterEdges=[], SlaveEdges=[], Press=[], RimContact=[], TreadToRoad=[], TreadBaseEdges=[], BodyToTreadEdges=[], TreadNode=[], **args):
 
     for key, value in args.items():
@@ -5175,11 +5465,6 @@ def Plot_LayoutCompare(ImageFileName, L1="", L2="", E1="", N1="", E2="", N2="", 
     xList = []
     yList = []
     
-    
-    # plt.ylabel(ylabel, fontsize=textsize)
-    # plt.xlabel(xlabel, fontsize=textsize)
-    # plt.xticks(size=textsize)
-    # plt.yticks(size=textsize)
 
     if title != '':
         plt.title(title, fontsize=textsize )
@@ -11012,54 +11297,84 @@ def FreeEdge(edge):
 
 def OuterEdge(FreeEdge, Node, Element):
 
-    # FreeEdge.Image(Node, "EDGEIMAGE")
-    
-    N = len(FreeEdge.Edge)
-    
-    MinY = 9.9E20
-    
-    cNodes = [0]
-    for i in range(N):
-        N1 = Node.NodeByID(FreeEdge.Edge[i][0])
-        N2 = Node.NodeByID(FreeEdge.Edge[i][1])
-        if N1[3] < MinY:
-            MinY = N1[3]
-            cNodes[0] = N1[0]
-        if N2[3] < MinY:
-            MinY = N2[3]
-            cNodes[0] = N2[0]
-    if cNodes[0] == 0:
-        cNodes[0] = Node.NodeIDByCoordinate('z', 0, closest=1)
+    #############################################
+    # starting from center bottom     
 
+    # N = len(FreeEdge.Edge)
+    
+    # MinY = 9.9E20
+    
+    # cNodes = [0]
+    # for i in range(N):
+    #     N1 = Node.NodeByID(FreeEdge.Edge[i][0])
+    #     N2 = Node.NodeByID(FreeEdge.Edge[i][1])
+    #     if N1[3] < MinY:
+    #         MinY = N1[3]
+    #         cNodes[0] = N1[0]
+    #     if N2[3] < MinY:
+    #         MinY = N2[3]
+    #         cNodes[0] = N2[0]
+    # if cNodes[0] == 0:
+    #     cNodes[0] = Node.NodeIDByCoordinate('z', 0, closest=1)
+
+    # MAX = 10000   ## max iteration for searching  error
+    # ShareNodePos = []
+    # #    connectedEdge = []
+    # outEdge = EDGE()
+
+    # ## Find a 1st surround edge (IL at the center)
+    # low = 9.9E20
+    # i = 0
+    # savei = 0
+    # while i < len(cNodes):
+    #     j = 0
+    #     while j < len(Node.Node):
+    #         if cNodes[i] == Node.Node[j][0]:
+    #             if Node.Node[j][3] < low:
+    #                 low = Node.Node[j][3]
+    #                 savei = j
+    #         j += 1
+    #     i += 1
+
+    # i = 0
+    # while i < len(FreeEdge.Edge):
+    #     if Node.Node[savei][0] == FreeEdge.Edge[i][0]:
+    #         break
+    #     i += 1
+    # ##################################################################
+
+    ## starting from right bottom 
+    npn = np.array(Node.Node)
+    subNodes=NODE()
+    for ed in FreeEdge.Edge: 
+        ix = np.where(npn[:,0]==ed[0])[0][0]
+        subNodes.Add(Node.Node[ix])
+        ix = np.where(npn[:,0]==ed[1])[0][0]
+        subNodes.Add(Node.Node[ix])
+    subNodes.DeleteDuplicate()
+
+    npSubN = np.array(subNodes.Node)
+    zMin = np.min(npSubN[:,3])
+    idx = np.where(npSubN[:,3]==zMin)[0]
+
+    yMax=-10**10 
+    for ix in idx:
+        if npSubN[ix][2] > yMax: 
+            yMax = npSubN[ix][2]
+            rightToe = npSubN[ix]
+
+        
+    for k, ix in enumerate(FreeEdge.Edge):
+        if ix[0] == rightToe[0]: 
+            i = k 
+            break 
+    #######################################################################
+
+    FreeEdge.Edge[i][5] = 1
     MAX = 10000   ## max iteration for searching  error
     ShareNodePos = []
-    #    connectedEdge = []
     outEdge = EDGE()
 
-    ## Find a 1st surround edge (IL at the center)
-    low = 9.9E20
-    i = 0
-    savei = 0
-    while i < len(cNodes):
-        j = 0
-        while j < len(Node.Node):
-            if cNodes[i] == Node.Node[j][0]:
-                if Node.Node[j][3] < low:
-                    low = Node.Node[j][3]
-                    savei = j
-            j += 1
-        i += 1
-
-    i = 0
-    while i < len(FreeEdge.Edge):
-        if Node.Node[savei][0] == FreeEdge.Edge[i][0]:
-            break
-        i += 1
-
-    ## End of 1st Outer Edge finding (IL1)
-    # print (i, len(FreeEdge.Edge))
-    # print (FreeEdge.Edge[i])
-    FreeEdge.Edge[i][5] = 1
     outEdge.Add(FreeEdge.Edge[i])
     iFirstNode = FreeEdge.Edge[i][0]
 
