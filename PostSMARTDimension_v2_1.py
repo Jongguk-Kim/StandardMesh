@@ -293,7 +293,7 @@ if __name__ == "__main__":
             DeformedSWPointY=float(data)*1000
     
  
-
+    BeadringType =  lstSnsInfo["VirtualTireParameters"]["BeadringType"]
     RimDia = SimCondition.RimDiameter
     MinGap=10**7
     if tiregroup != 'TBR': 
@@ -303,7 +303,7 @@ if __name__ == "__main__":
                 MinGap = abs(SimCondition.RimDiameter - dia[1])
         
     else:
-        BeadringType =  lstSnsInfo["VirtualTireParameters"]["BeadringType"]
+        
         for dia in TB_RimDia: 
             if abs(SimCondition.RimDiameter - dia[1])< MinGap: 
                 RimDia = dia[1]
@@ -344,19 +344,30 @@ if __name__ == "__main__":
         # print("RIM Point x=%.4f, y=%.4f, Hb=%.1f"%(MoldRimWidth/2.0 ,RimDia/2.0, rimHt))
         # print ("LSH=%.1f, DW=%.1f"%(InitialLSH, InitialDW))
 
+    try:
+        if tiregroup != 'TBR' and BeadringType=="Tubeless": 
+            try: 
+                InitialK_Factor = float(lstSnsInfo["VirtualTireParameters"]["A-angle"])
+            except:
+                InitialK_Factor = float(lstSnsInfo["VirtualTireParameters"]["K-Factor"])
+        else: 
+            InitialK_Factor = float(lstSnsInfo["VirtualTireParameters"]["K-Factor"])
+    except:
+        pass 
 
-    DeformedLSH = DeformedSWPointY - RimDia/2.0 -rimHt
+
+    DeformedLSH = DeformedSWPointY - SimCondition.RimDiameter/2.0 -rimHt
     DeformedDW = DeformedSWPointX - SimCondition.RimWidth/2.0
     DeformedK_Factor = (DeformedLSH**2 - DeformedDW**2)/DeformedLSH/2/DeformedDW
 
     # print("####################################################")
     print (" TIRE SIZE : %s"%(tireSize))    
-    print (" Mold RW=%.2f, test RW=%.2f"%(MoldRimWidth, SimCondition.RimWidth))
-    print (" Mold RD=%.2f <- used to calculate (test RD=%.2f)"%(RimDia, SimCondition.RimDiameter))
+    print (" Mold RW=%.2f, Test RW=%.2f"%(MoldRimWidth, SimCondition.RimWidth))
+    print (" Mold RD=%.2f  Test RD=%.2f)"%(RimDia, SimCondition.RimDiameter))
 
     print (" Init SW Point x=%.3f, y=%.3f"%(InitialSWPointX, InitialSWPointY))
     print (" Deformed SW Point x=%.3f, y=%.3f"%(DeformedSWPointX, DeformedSWPointY))
-    print("** Mold K-Factor = %.2f, Deformed K-Factor=%.2f"%(InitialK_Factor, DeformedK_Factor))
+    print("** Mold K-Factor / A-Angle = %.2f, Deformed K-Factor=%.2f"%(InitialK_Factor, DeformedK_Factor))
 
     SWPointForK_factor = [[0, 0, DeformedSWPointX/1000, DeformedSWPointY/1000]]
     SWPointForK_factor.append([0, 0,SimCondition.RimWidth/2000, RimDia/2000])
@@ -856,7 +867,7 @@ if __name__ == "__main__":
     f.writelines(line)
     line = 'Deformed SW=' + str(format(DeformedSW*1000, '.2f'))+'\n'
     f.writelines(line)
-    line = 'Mold K-Factor=' + str(format(InitialK_Factor, '.3f'))+'\n'
+    line = 'Mold K-Factor/A-Angle=' + str(format(InitialK_Factor, '.3f'))+'\n'
     f.writelines(line)
     line = 'Inflated K-Factor=' + str(format(DeformedK_Factor, '.3f'))+'\n'
     f.writelines(line)

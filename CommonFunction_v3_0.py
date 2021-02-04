@@ -4764,55 +4764,10 @@ def plot_DetailLayout(filename, Element, Node, dpi=200, AddingNodes=[], rim=[], 
 
     if len(rim) > 0:
         RimPoint = rim 
-        if group != 'TBR': 
-            rims=['START, 14.300000,  12.500000',
-                'CIRCL, 17.300000,   9.500000, 14.300000,  9.500000', 
-                'CIRCL,  7.800000,   0.000000,  7.800000,  9.500000',
-                'LINE ,  5.956000,   0.000000',
-                'CIRCL, -0.519266,  -5.933488,  5.956000, -6.500000',
-                'LINE , -2.262376, -25.857332',
-                'CIRCL, -6.921500, -30.411184, -7.243350,-25.421553'
-                ]
-            AddRimsToDrawing(rims, RimPoint, ax)
-            rims=['START, 14.300000,  -12.500000',
-                'CIRCL, 17.300000,   -9.500000, 14.300000,  -9.500000', 
-                'CIRCL,  7.800000,   -0.000000,  7.800000,  -9.500000',
-                'LINE ,  5.956000,   -0.000000',
-                'CIRCL, -0.519266,  5.933488,  5.956000, 6.500000',
-                'LINE , -2.262376, 25.857332',
-                'CIRCL, -6.921500, 30.411184, -7.243350, 25.421553'
-                ]
-        elif beadring == 'Tubeless':
-            rims=[  'START,  10.017000,  20.507000', 
-                    'CIRCL,   3.934092,   0.624717,	 0.000000,  12.700000 ', 
-                    'CIRCL,  -1.316291,  -4.911422,	 6.411000,  -6.982100 ', 
-                    'LINE , -24.593024, -92.774800' 
-                ]
-            AddRimsToDrawing(rims, RimPoint, ax)
-            rims=[  'START,  10.017000,  -20.507000', 
-                    'CIRCL,   3.934092,   -0.624717,	 0.000000,  -12.700000 ', 
-                    'CIRCL,  -1.316291,  4.911422,	 6.411000,  6.982100 ', 
-                    'LINE , -24.593024, 92.774800' 
-                ]
-        else:
-            rims =['START,  28.000000,  16.500000', 
-                    'LINE,   28.000000,  14.000000 ', 
-                    'CIRCL,  14.000000,   0.000000,  14.000000,  14.000000',
-                    'LINE,    7.330650,   0.000000', 
-                    'CIRCL,  -0.638907,  -7.302750,   7.330650,  -8.000000', 
-                    'LINE,   -3.149590, -36.000000  ', 
-                    'CIRCL,  -6.559574, -41.876208, -11.119148, -35.302754' 
-                    ]
-            AddRimsToDrawing(rims, RimPoint, ax)
-            rims =['START,  28.000000,  -16.500000', 
-                    'LINE,   28.000000,  -14.000000 ', 
-                    'CIRCL,  14.000000,   0.000000,  14.000000,  -14.000000',
-                    'LINE,    7.330650,   0.000000', 
-                    'CIRCL,  -0.638907,  7.302750,   7.330650,  8.000000', 
-                    'LINE,   -3.149590, 36.000000  ', 
-                    'CIRCL,  -6.559574, 41.876208, -11.119148, 35.302754' 
-                    ]
+        rims = RimProfileInformation(group, beadring, 'pos')
+        AddRimsToDrawing(rims, RimPoint, ax)
         
+        rims = RimProfileInformation(group, beadring, 'neg')
         RimPoint[0] *= -1 
         AddRimsToDrawing(rims, RimPoint, ax)
         
@@ -4836,11 +4791,68 @@ def Angle_3nodes(n1=[], n2=[], n3=[], xy=0): ## n2 : mid node
 
     return angle
 
+def RimProfileInformation( tireGroup='PCR', beadring='Tubeless', side="pos"): 
+    if tireGroup !='TBR': 
+        if side.lower()=="pos": 
+            rims=['START, 14.300000,  12.500000',
+                    'CIRCL, 17.300000,   9.500000, 14.300000,  9.500000', 
+                    'CIRCL,  7.800000,   0.000000,  7.800000,  9.500000',
+                    'LINE ,  5.956000,   0.000000',
+                    'CIRCL, -0.519266,  -5.933488,  5.956000, -6.500000',
+                    'LINE , -2.262376, -25.857332',
+                    'CIRCL, -6.921500, -30.411184, -7.243350,-25.421553'
+                    ]
+        else: 
+            rims=['START, 14.300000,  -12.500000',
+                'CIRCL, 17.300000,   -9.500000, 14.300000,  -9.500000', 
+                'CIRCL,  7.800000,   -0.000000,  7.800000,  -9.500000',
+                'LINE ,  5.956000,   -0.000000',
+                'CIRCL, -0.519266,  5.933488,  5.956000, 6.500000',
+                'LINE , -2.262376, 25.857332',
+                'CIRCL, -6.921500, 30.411184, -7.243350, 25.421553'
+                ]
+    elif beadring == 'Tubeless':
+        if side.lower()=="pos": 
+            rims=[  'START,  10.017000,  20.507000', 
+                    'CIRCL,   3.934092,   0.624717,	 0.000000,  12.700000 ', 
+                    'CIRCL,  -1.316291,  -4.911422,	 6.411000,  -6.982100 ', 
+                    'LINE , -10.279288, -38.744315' 
+                ]
+        else:
+            rims=[  'START,  10.017000,  -20.507000', 
+                    'CIRCL,   3.934092,   -0.624717,	 0.000000,  -12.700000 ', 
+                    'CIRCL,  -1.316291,  4.911422,	 6.411000,  6.982100 ', 
+                    'LINE , -10.279288, 38.744315' 
+                ]
+    else:
+        if side.lower() =='pos': 
+            rims =['START,  28.000000,  16.500000', 
+                    'LINE,   28.000000,  14.000000 ', 
+                    'CIRCL,  14.000000,   0.000000,  14.000000,  14.000000',
+                    'LINE,    7.330650,   0.000000', 
+                    'CIRCL,  -0.638907,  -7.302750,   7.330650,  -8.000000', 
+                    'LINE,   -3.149590, -36.000000  ', 
+                    'CIRCL,  -6.559574, -41.876208, -11.119148, -35.302754' 
+                    ]
+        else:
+            rims =['START,  28.000000,  -16.500000', 
+                    'LINE,   28.000000,  -14.000000 ', 
+                    'CIRCL,  14.000000,   0.000000,  14.000000,  -14.000000',
+                    'LINE,    7.330650,   0.000000', 
+                    'CIRCL,  -0.638907,  7.302750,   7.330650,  8.000000', 
+                    'LINE,   -3.149590, 36.000000  ', 
+                    'CIRCL,  -6.559574, 41.876208, -11.119148, 35.302754' 
+                    ]
+    return rims 
+
 def AddRimsToDrawing(rims, RimPoint, ax): 
     try : 
         from matplotlib.patches import Arc
     except:
         pass 
+
+    
+
 
     for line  in rims: 
         word = line.split(",")
@@ -10956,6 +10968,18 @@ def PlotGrooveDeformation_BetweenGT_Drum(imagename, node_drumprofile, node_gtpri
     # lasttextposition = [  N2[2] + dimtxtshiftx - squarebottomtxtshift*btmtxtmulti, N2[3] - dimbottom - dimbottomht*2 ]
 
     plt.savefig(imagename, dpi=200)
+
+def VectorPoint(v=[0, 0, 0, 0], length=1.0, start=[0, 0, 0, 0], xy=0): 
+    if xy <=0 : 
+        L = math.sqrt(v[1]**2+v[2]**2+v[3]**2)
+        position = [0, length*v[1]/L, length*v[2]/L, length*v[3]/L]
+    else:
+        x = int(xy/10);     y = int(xy%10)
+        L = math.sqrt(v[x]**2+v[y]**2)
+        position = [0, 0, 0, 0]
+        position[x] = length*v[x]/L + start[x]
+        position[y] = length*v[y]/L + start[y]
+    return position 
 
 
 ##//////////////////////////////////////
