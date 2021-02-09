@@ -316,7 +316,6 @@ if __name__ == "__main__":
         if "LAYOUT RIM WIDTH" in line:
             data = line.split(":")[1].strip()
             MoldRimWidth = float(data)
-            print(MoldRimWidth)
             break 
 
     tireSize = lstSnsInfo["VirtualTireBasicInfo"]["TireSize"]
@@ -363,7 +362,8 @@ if __name__ == "__main__":
     # print("####################################################")
     print (" TIRE SIZE : %s"%(tireSize))    
     print (" Mold RW=%.2f, Test RW=%.2f"%(MoldRimWidth, SimCondition.RimWidth))
-    print (" Mold RD=%.2f  Test RD=%.2f)"%(RimDia, SimCondition.RimDiameter))
+    print (" Mold RD=%.2f  Test RD=%.2f"%(RimDia, SimCondition.RimDiameter))
+    print (" Flange Curve Center Ht=%.2f"%(rimHt))
 
     print (" Init SW Point x=%.3f, y=%.3f"%(InitialSWPointX, InitialSWPointY))
     print (" Deformed SW Point x=%.3f, y=%.3f"%(DeformedSWPointX, DeformedSWPointY))

@@ -153,13 +153,19 @@ def Equivalent_density_calculation(cute_mesh, filename=""):
             code =sd[1]
             structure = sd[2]
             try: 
-                EPI = float(sd[3])
-                dia = float(sd[4])/1000.0
-                topping = sd[5]
-                ga = float(sd[6]) /1000
-                cf = float(sd[7])
-                rf = float(sd[8])
-                wt = float(sd[11])
+                m = 3
+                try:
+                    EPI = float(sd[m]);        m+=1
+                except:
+                    m+=1
+                    EPI = float(sd[m]);        m+=1
+                    
+                dia = float(sd[m])/1000.0;        m+=1
+                topping = sd[m];        m+=1
+                ga = float(sd[m]) /1000;        m+=1
+                cf = float(sd[m]);        m+=1
+                rf = float(sd[m]);        m+=3
+                wt = float(sd[m])
                 if "ES" in code: 
                     Area = Area_steel_cord(structure)
                 else: 
