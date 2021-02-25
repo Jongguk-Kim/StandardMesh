@@ -47,12 +47,14 @@ if __name__ == "__main__":
     twratio = 1.0
     doe = ''
     rev = 0
-    writeProfileNode = 0
+    writeProfileNode = 1
+    manualPost = 0 
+    smart =""
     for i in range(1, len(sys.argv)):
         arg = sys.argv[i].split('=')
         
-        if arg[0] == 'smart':            smart = arg[1].strip()
-        if arg[0] == 'mesh':             str2DInp = arg[1]
+        if arg[0] == 'smart' or  arg[0] == 's':            smart = arg[1].strip()
+        if arg[0] == 'mesh' or  arg[0] == 'm':             str2DInp = arg[1]
         if arg[0] == 'sns':              snsfile=arg[1].strip()
         
         if arg[0] == 'rev':              rev = int(arg[1].strip())  
@@ -62,7 +64,7 @@ if __name__ == "__main__":
                 reftwratio = twratio
             twratio = twratio / reftwratio
         if arg[0] == 'doe'  :           doe = arg[1].strip()
-        if arg[0] == 'profile':  writeProfileNode=1
+        if arg[0] == 'profile':  writeProfileNode=arg[1].strip()
     #################################################################################
 
     if doe != '':
@@ -93,40 +95,85 @@ if __name__ == "__main__":
 
         filename_base =  smart[:-4] 
 
+        rev = strSimCode.split("-")[2]
+
     else:
         strJobDir = os.getcwd()
         lstSmartFileNames = glob.glob(strJobDir + '/*.sns')
-        strSmartFileName = lstSmartFileNames[0]
-        strSmartInpFIleName = strSmartFileName[:-4] + '.inp'
+        if len(lstSmartFileNames) > 0 and smart =="": 
+            strSmartFileName = lstSmartFileNames[0]
+            strSmartInpFIleName = strSmartFileName[:-4] + '.inp'
 
+            
+            tmpList = list(strSmartInpFIleName.split('/'))
+            tmpList = list(tmpList[-1].split('-'))
+            for i in range(len(tmpList)):
+                if 'VT' in tmpList[i]: 
+                    str2DInp = strJobDir + '/' + tmpList[i] + '-' + tmpList[i+1] +'.inp'
+                    break
+
+            with open(strSmartFileName) as Sns_file:
+                lstSnsInfo = json.load(Sns_file)
+
+            strSimCode = lstSnsInfo["AnalysisInformation"]["SimulationCode"]
+            TreadDesignWidth = float(lstSnsInfo["VirtualTireParameters"]["TreadDesignWidth"])
+            listGD = lstSnsInfo["VirtualTireParameters"]["MainGrooveDepth"].split(";")
+            Shodrop = float(lstSnsInfo["VirtualTireParameters"]["ShoulderDrop"])
+            TireOD =  float(lstSnsInfo["VirtualTireParameters"]["OverallDiameter"])
+            groovedepth = 0.0
+            for gd in listGD:
+                if groovedepth < float(gd):  groovedepth = float(gd)
+            tiregroup = lstSnsInfo["VirtualTireBasicInfo"]["ProductLine"]
+            BeadringType =  lstSnsInfo["VirtualTireParameters"]["BeadringType"]
+            tireSize = lstSnsInfo["VirtualTireBasicInfo"]["TireSize"]
+            RimRadius = float(lstSnsInfo["VirtualTireParameters"]["RimDiameter"]) / 2000.0 
+
+            rev = strSimCode.split("-")[2]
         
-        tmpList = list(strSmartInpFIleName.split('/'))
-        tmpList = list(tmpList[-1].split('-'))
-        for i in range(len(tmpList)):
-            if 'VT' in tmpList[i]: 
-                str2DInp = strJobDir + '/' + tmpList[i] + '-' + tmpList[i+1] +'.inp'
-                break
+        else:
+            manualPost = 1
 
-        with open(strSmartFileName) as Sns_file:
-            lstSnsInfo = json.load(Sns_file)
+            Shodrop = 0.0
+            if ".inp" in smart:  strSmartInpFIleName=smart
+            else: strSmartInpFIleName=smart+".inp"
+            if not ".inp" in str2DInp:  str2DInp=str2DInp+".inp"
 
-        strSimCode = lstSnsInfo["AnalysisInformation"]["SimulationCode"]
-        TreadDesignWidth = float(lstSnsInfo["VirtualTireParameters"]["TreadDesignWidth"])
-        listGD = lstSnsInfo["VirtualTireParameters"]["MainGrooveDepth"].split(";")
-        Shodrop = float(lstSnsInfo["VirtualTireParameters"]["ShoulderDrop"])
-        TireOD =  float(lstSnsInfo["VirtualTireParameters"]["OverallDiameter"])
-        groovedepth = 0.0
-        for gd in listGD:
-            if groovedepth < float(gd):  groovedepth = float(gd)
-        tiregroup = lstSnsInfo["VirtualTireBasicInfo"]["ProductLine"]
-        
+            with open(str2DInp) as M:
+                lines = M.readlines()
+            for line in lines: 
+                if "**" in line and " SIZE" in line: 
+                    tireSize = line.split(":")[1].strip()
+                if "**" in line and " CLASS_CODE" in line: 
+                    tmp = line.split(":")[1].strip()
+                    if 'TB' in tmp: tiregroup='TBR'
+                    elif 'LB' in tmp: tiregroup='LTR'
+                    else:  tiregroup='PCR'
+                if "**" in line and " CAVITY_OD" in line:
+                    tmp = line.split(":")[1].strip()
+                    TireOD = float(tmp)
+
+                if "**" in line and " RIM DIA" in line:
+                    tmp = line.split(":")[1].strip()
+                    RimRadius = float(tmp)*25.4 
+
+            if tiregroup=='TBR':     
+                if ".5" in tireSize : BeadringType = "Tubeless"
+                else: BeadringType = "Tubetype"
+            else: 
+                BeadringType = "Tubeless"
+
+            if tiregroup=='TBR' and  BeadringType == "Tubeless": 
+                RimRadius += 0.5*25.4 
+            
+            strSimCode = strSmartInpFIleName[:-4]
+            rev = '0'
+
         SimTime = TIRE.SIMTIME(strSimCode+'.inp')
         SimCondition = TIRE.CONDITION(strSimCode+'.inp')
         strErrFileName = strSimCode + '.err' 
         
         filename_base =  strSimCode
         
-        rev = strSimCode.split("-")[2]
     ###############################################################################################
 
 
@@ -160,101 +207,111 @@ if __name__ == "__main__":
     except:
         pass
 
+    if manualPost==1: 
+        BT1 = Element.Elset("BT1")
+        bt1N = BT1.Nodes(node=Node)
+        mny=0; mxy=0
+        for n in bt1N.Node: 
+            if n[2] > mxy: mxy = n[2]
+            if n[2] < mny: mny = n[2]
+        TreadDesignWidth = mxy - mny + 0.01 
+
 
     
     ####################################################################################
     ## Groove Deformation 
     #################################################################################### 
-    sdb = strJobDir + "/SDB_PCI." + strSimCode + "/" + strSimCode + ".sdb"
-    tm1 = str(format(int (0.02 / SimTime.DelTime), "03"))
-    lstsdb = sdb + tm1
-    Node02 = TIRE.ResultSDB(sdb, lstsdb, Offset, TreadNo, 1, -1)
-    for n in Node02.Node:        n[0] = n[0] % Offset
-    tm1 = str(format(int (0.03 / SimTime.DelTime), "03"))
-    lstsdb = sdb + tm1
-    Node03 = TIRE.ResultSDB(sdb, lstsdb, Offset, TreadNo, 1, -1)
-    for n in Node03.Node:        n[0] = n[0] % Offset
-    if len(Node02.Node) != len(Node03.Node): 
-        print ("ERROR!! Node No. between Time 0.02 and 0.03 are different (Maybe no results in the last step file)!!")
-        print ("#####   Processing is going to stop!!")
-        sys.exit()
+    if manualPost ==0: 
+        sdb = strJobDir + "/SDB_PCI." + strSimCode + "/" + strSimCode + ".sdb"
+        tm1 = str(format(int (0.02 / SimTime.DelTime), "03"))
+        lstsdb = sdb + tm1
+        Node02 = TIRE.ResultSDB(sdb, lstsdb, Offset, TreadNo, 1, -1)
+        for n in Node02.Node:        n[0] = n[0] % Offset
+        tm1 = str(format(int (0.03 / SimTime.DelTime), "03"))
+        lstsdb = sdb + tm1
+        Node03 = TIRE.ResultSDB(sdb, lstsdb, Offset, TreadNo, 1, -1)
+        for n in Node03.Node:        n[0] = n[0] % Offset
+        if len(Node02.Node) != len(Node03.Node): 
+            print ("ERROR!! Node No. between Time 0.02 and 0.03 are different (Maybe no results in the last step file)!!")
+            print ("#####   Processing is going to stop!!")
+            sys.exit()
 
 
-    outerprofile = Element.OuterEdge(Node)
-    treadprofile = TIRE.EDGE()
-    for of in outerprofile.Edge:
-        if of[2] == "SUT" or of[2] == "CTB"  or of[2] == "CTR" or of[2] == "UTR" or of[2] == "TRW" :
-            treadprofile.Add(of)
-    tdnodelist = treadprofile.Nodes()
-    
-    TreadElset =["SUT", "CTB", "CTR", "UTR", "TRW"]
-    CrownElement=TIRE.ELEMENT()
-    for elset in TreadElset:
-        tmpelset = Element.Elset(elset)
-        CrownElement.Combine(tmpelset)
-
-
-    groovetop = []
-    groovebottomnode = []
-    for i, n in enumerate(tdnodelist):
-        if i < 3 or i > len(tdnodelist)-4: continue
-        counting = 0
-        el3 = 0
-        for e in CrownElement.Element:  # check if the node is on the tri-angular element 
-            for i in range(1, e[6]+1):
-                if n == e[i]:
-                    counting += 1
-                    if e[6] == 3:
-                        el3=e[0]     # -> node on a tri-angular element 
-                    break
-        if counting == 1:
-            groovetop.append(n)
-        elif counting >= 3 and el3 == 0:
-            groovebottomnode.append(n)
-        elif counting >=3 and el3 > 0:                                 ## if bottom node is on tri-angular element, that has no contact with "BSW", "SHW" or "BEC"
-            ADJ = TIRE.FindAdjcentElements(el3, Element)
-            bgroove = 1
-            for adj in ADJ.Element:
-                if adj[5] == "BSW" or adj[5] == "SHW" or adj[5] == "BEC":  bgroove = 0    ## if 
-            if bgroove ==1: groovebottomnode.append(n)
-
-    groovetopnode = []
-    for top in groovetop:
-        counting = 0
-        for tedge in treadprofile.Edge:
-            if top == tedge[0] or top == tedge[1]:
-                counting += 1
-        if counting == 2:
-            groovetopnode.append(top)
-    del(groovetop)
-
-    print ("Groove Top Node", groovetopnode)
-    LY = []
-    for nd in groovetopnode: 
-        N = Node.NodeByID(nd)
-        LY.append(N[2])
-
-    if len(LY) > 0: 
-        MinLY=min(LY)
-        MaxLY=max(LY)
-
-        LY = []
-        for nd in groovebottomnode: 
-            N = Node.NodeByID(nd)
-            if N[2] < MaxLY and N[2]>MinLY: LY.append(nd)
+        outerprofile = Element.OuterEdge(Node)
+        treadprofile = TIRE.EDGE()
+        for of in outerprofile.Edge:
+            if of[2] == "SUT" or of[2] == "CTB"  or of[2] == "CTR" or of[2] == "UTR" or of[2] == "TRW" :
+                treadprofile.Add(of)
+        tdnodelist = treadprofile.Nodes()
         
-        groovebottomnode = LY 
-    
+        TreadElset =["SUT", "CTB", "CTR", "UTR", "TRW"]
+        CrownElement=TIRE.ELEMENT()
+        for elset in TreadElset:
+            tmpelset = Element.Elset(elset)
+            CrownElement.Combine(tmpelset)
 
-    if len(groovebottomnode) != len(groovetopnode): 
-        print (" ## CHECK GROOVE EDGE NODE SEARCH ALGORITHM - NOT THE SAME NO. OF NDOES.")
-        print ("groove bottom nodes", groovebottomnode)
+
+        groovetop = []
+        groovebottomnode = []
+        for i, n in enumerate(tdnodelist):
+            if i < 3 or i > len(tdnodelist)-4: continue
+            counting = 0
+            el3 = 0
+            for e in CrownElement.Element:  # check if the node is on the tri-angular element 
+                for i in range(1, e[6]+1):
+                    if n == e[i]:
+                        counting += 1
+                        if e[6] == 3:
+                            el3=e[0]     # -> node on a tri-angular element 
+                        break
+            if counting == 1:
+                groovetop.append(n)
+            elif counting >= 3 and el3 == 0:
+                groovebottomnode.append(n)
+            elif counting >=3 and el3 > 0:                                 ## if bottom node is on tri-angular element, that has no contact with "BSW", "SHW" or "BEC"
+                ADJ = TIRE.FindAdjcentElements(el3, Element)
+                bgroove = 1
+                for adj in ADJ.Element:
+                    if adj[5] == "BSW" or adj[5] == "SHW" or adj[5] == "BEC":  bgroove = 0    ## if 
+                if bgroove ==1: groovebottomnode.append(n)
+
+        groovetopnode = []
+        for top in groovetop:
+            counting = 0
+            for tedge in treadprofile.Edge:
+                if top == tedge[0] or top == tedge[1]:
+                    counting += 1
+            if counting == 2:
+                groovetopnode.append(top)
+        del(groovetop)
+
+        print ("Groove Top Node", groovetopnode)
+        LY = []
+        for nd in groovetopnode: 
+            N = Node.NodeByID(nd)
+            LY.append(N[2])
+
+        if len(LY) > 0: 
+            MinLY=min(LY)
+            MaxLY=max(LY)
+
+            LY = []
+            for nd in groovebottomnode: 
+                N = Node.NodeByID(nd)
+                if N[2] < MaxLY and N[2]>MinLY: LY.append(nd)
+            
+            groovebottomnode = LY 
+        
+
+        if len(groovebottomnode) != len(groovetopnode): 
+            print (" ## CHECK GROOVE EDGE NODE SEARCH ALGORITHM - NOT THE SAME NO. OF NDOES.")
+            print ("groove bottom nodes", groovebottomnode)
 
 
-    if len(groovetopnode) > 2:
-        TIRE.PlotGrooveDeformation_BetweenGT_Drum(filename_base+"-Grooveshape", Node02, Node03, treadprofile, groovetopnode, groovebottomnode, shift=0.0, mold=Node,\
-                groove=groovedepth, treadwidth=TreadDesignWidth, group=tiregroup, color="black", label="", fontsize=5, lw=1.0, dimcolor="royalblue", dimbottomcolor="darkorange")
-    
+        if len(groovetopnode) > 2:
+            TIRE.PlotGrooveDeformation_BetweenGT_Drum(filename_base+"-Grooveshape", Node02, Node03, treadprofile, groovetopnode, groovebottomnode, shift=0.0, mold=Node,\
+                    groove=groovedepth, treadwidth=TreadDesignWidth, group=tiregroup, color="black", label="", fontsize=5, lw=1.0, dimcolor="royalblue", dimbottomcolor="darkorange")
+        
     ## End Tread Extrusion Design Guide 
     ####################################################################################
     Node, Element, Elset, Comment = TIRE.Mesh2DInformation(str2DInp)
@@ -295,7 +352,7 @@ if __name__ == "__main__":
             DeformedSWPointY=float(data)*1000
     
  
-    BeadringType =  lstSnsInfo["VirtualTireParameters"]["BeadringType"]
+    
     RimDia = SimCondition.RimDiameter
     MinGap=10**7
     if tiregroup != 'TBR': 
@@ -320,7 +377,7 @@ if __name__ == "__main__":
             MoldRimWidth = float(data)
             break 
 
-    tireSize = lstSnsInfo["VirtualTireBasicInfo"]["TireSize"]
+    
     if tiregroup != 'TBR': rimHt = 9.2
     elif BeadringType=="Tubeless": 
         rimHt = 0.0
@@ -383,9 +440,6 @@ if __name__ == "__main__":
     DeformedTopNode = TIRE.GetDeformedNodeFromSDB(strSimCode, -1, Step=0, Offset=Offset, TreadNo=TreadNo, simtime=SimTime, jobdir=strJobDir)
     for nd in DeformedTopNode.Node:
         nd[0] %= Offset
-        nd[3] = math.sqrt(nd[3]**2+nd[1]**2)
-        nd[1] = 0.0
-        
     # DeformedTopNode.Image(file="DEFORMED_ROTATED_camber_0", size=10, xy=21)
     DeformedTopNode.Rotate(SimCondition.Camber, xy=23)
     # DeformedTopNode.Image(file="DEFORMED_ROTATED_camber_23_", size=10, xy=21)
@@ -443,15 +497,16 @@ if __name__ == "__main__":
     tOuteredge.Combine(BDLOuter)
     tOuteredge.Combine(C01edge)
 
-    if len(groovetopnode) ==0 :
-        TIRE.Plot_EdgeComparison(filename_base+"-Grooveshape", tOuteredge, Node, Node02, Node3=Node03,\
-         L1="Time_0.00 (In-Mold)", L2="Time_0.02", L3="Time_0.03", ls1=":")
-    else:
-        TIRE.Plot_EdgeComparison(filename_base+"-Shaping", tOuteredge, Node, Node02, Node3=Node03,\
-         L1="Time_0.00 (In-Mold)", L2="Time_0.02", L3="Time_0.03", ls1=":")
+    if manualPost ==0: 
+        if len(groovetopnode) ==0 :
+            TIRE.Plot_EdgeComparison(filename_base+"-Grooveshape", tOuteredge, Node, Node02, Node3=Node03,\
+            L1="Time_0.00 (In-Mold)", L2="Time_0.02", L3="Time_0.03", ls1=":")
+        else:
+            TIRE.Plot_EdgeComparison(filename_base+"-Shaping", tOuteredge, Node, Node02, Node3=Node03,\
+            L1="Time_0.00 (In-Mold)", L2="Time_0.02", L3="Time_0.03", ls1=":")
     ####################################################################################
-
-    OuterEdge = outerprofile # Element.OuterEdge(Node)
+    
+    OuterEdge = Element.OuterEdge(Node)
     GrooveCrown = TIRE.GrooveDetectionFromEdge(OuterEdge, Node, OnlyTread=1, TreadNumber=TreadNo)
     # GrooveCrown.Image(Node, "EDGE", "o")
     NoGrooveCrown = TIRE.DeleteGrooveEdgeAfterGrooveDetection(GrooveCrown, Node)
@@ -574,7 +629,7 @@ if __name__ == "__main__":
         print ("   ==> Initial TR=%.0fmm --> Deformed TR=%.0fmm"%(InitialTR*1000, DeformedTR*1000))
         
 
-    else:    ## if there is no sho.drop information at SNS file, there can be error in calculation logic when you try to compare results with other models.
+    elif manualPost==0:    ## if there is no sho.drop information at SNS file, there can be error in calculation logic when you try to compare results with other models.
 
         CriticalAngle = 40.0
 
@@ -808,7 +863,7 @@ if __name__ == "__main__":
     ## inner volume calculation
     Innervolume, tnodeid = TIRE.CalculateTireInnerVolume(Element, DeformedTopNode, node=Node, file=filename_base+"-PointsForVolume.png", toe=1)
 
-    RimRadius = float(lstSnsInfo["VirtualTireParameters"]["RimDiameter"]) / 2000.0 
+    
     LSH = SW_Carcass[3] - RimRadius
     LSH_Comment = "Cc LSH="+format(round(LSH*1000, 1))
     x=abs(SW_Carcass[2])
@@ -943,54 +998,54 @@ if __name__ == "__main__":
         print (textline)
         err.write(textline)
 
-    
+    if manualPost ==0: 
 
-    f = open(filename_base+'-Dimension.txt', 'w')
-    # print ("######### DOE Result ", cwd+"/"+doe+'-Dimension.txt')
-    line = str(rev) + ', Initial OD[mm]=' + str(format(InitialOD*1000, '.3f'))+'\n'
-    f.writelines(line)
-    line = str(rev) + ',Initial SW[mm]=', str(format(InitialSW*1000, '.3f'))+'\n'
-    f.writelines(line)
-    line = str(rev) + ',Initial Crown Radius[mm]=', str(format(InitialTR*1000, '.3f'))+'\n'
-    f.writelines(line)
-    line = str(rev) + ',Initial Sho. Drop[mm]=', str(format(InitialShoDrop*1000, '.6f'))+'\n'
-    f.writelines(line)
-    line = str(rev) + ',Initial Belt Radius[mm]=', str(format(InitialBTR*1000, '.3f'))+'\n'
-    f.writelines(line)
-    line = str(rev) + ',Initial Carcass Radius[mm]=', str(format(InitialC01R*1000, '.3f'))+'\n'
-    f.writelines(line)
-    
-    line = str(rev) + ',Deformed OD[mm]=', str(format(DeformedOD*1000, '.3f'))+'\n'
-    f.writelines(line)
-    line = str(rev) + ',Deformed SW[mm]=', str(format(DeformedSW*1000, '.3f'))+'\n'
-    f.writelines(line)
-    
-    line = str(rev) + ',Deformed Crown Radius[mm]=', str(format(DeformedTR*1000, '.3f'))+'\n'
-    f.writelines(line)
-    
-    line = str(rev) + ',Deformed Sho. Drop[mm]=', str(format(DeformedShoDrop*1000, '.6f'))+'\n'
-    f.writelines(line)
-    
-    line = str(rev) + ',Deformed Belt Radius[mm]=', str(format(DeformedBTR*1000, '.3f'))+'\n'
-    f.writelines(line)
-    
-    line = str(rev) + ',Deformed Carcass Radius[mm]=', str(format(DeformedC01R*1000, '.3f'))+'\n'
-    f.writelines(line)
+        f = open(filename_base+'-Dimension.txt', 'w')
+        # print ("######### DOE Result ", cwd+"/"+doe+'-Dimension.txt')
+        line = str(rev) + ', Initial OD[mm]=' + str(format(InitialOD*1000, '.3f'))+'\n'
+        f.writelines(line)
+        line = str(rev) + ',Initial SW[mm]=', str(format(InitialSW*1000, '.3f'))+'\n'
+        f.writelines(line)
+        line = str(rev) + ',Initial Crown Radius[mm]=', str(format(InitialTR*1000, '.3f'))+'\n'
+        f.writelines(line)
+        line = str(rev) + ',Initial Sho. Drop[mm]=', str(format(InitialShoDrop*1000, '.6f'))+'\n'
+        f.writelines(line)
+        line = str(rev) + ',Initial Belt Radius[mm]=', str(format(InitialBTR*1000, '.3f'))+'\n'
+        f.writelines(line)
+        line = str(rev) + ',Initial Carcass Radius[mm]=', str(format(InitialC01R*1000, '.3f'))+'\n'
+        f.writelines(line)
+        
+        line = str(rev) + ',Deformed OD[mm]=', str(format(DeformedOD*1000, '.3f'))+'\n'
+        f.writelines(line)
+        line = str(rev) + ',Deformed SW[mm]=', str(format(DeformedSW*1000, '.3f'))+'\n'
+        f.writelines(line)
+        
+        line = str(rev) + ',Deformed Crown Radius[mm]=', str(format(DeformedTR*1000, '.3f'))+'\n'
+        f.writelines(line)
+        
+        line = str(rev) + ',Deformed Sho. Drop[mm]=', str(format(DeformedShoDrop*1000, '.6f'))+'\n'
+        f.writelines(line)
+        
+        line = str(rev) + ',Deformed Belt Radius[mm]=', str(format(DeformedBTR*1000, '.3f'))+'\n'
+        f.writelines(line)
+        
+        line = str(rev) + ',Deformed Carcass Radius[mm]=', str(format(DeformedC01R*1000, '.3f'))+'\n'
+        f.writelines(line)
 
-    line = str(rev) + ',Belt Center Lift[mm]=', str(format(LiftBeltCenter*1000, '.3f'))+'\n'
-    f.writelines(line)
-    line = str(rev) + ',Belt Edge Lift[mm]=', str(format(LiftBeltEdge*1000, '.3f'))+'\n'
-    f.writelines(line)
-    line = str(rev) + ',Belt Edge Drop[mm]=', str(format(BTEdgeDrop*1000, '.3f'))+'\n'
-    f.writelines(line)
-    line = str(rev) + ',Weight[kg]=%.3f\n'%(float(Weight))
-    f.writelines(line)
-    line = str(rev) + ',Mold K-Factor=%.3f\n'%(float(InitialK_Factor))
-    f.writelines(line)
-    line = str(rev) + ',Inflated K-Factor=%.3f\n'%(float(DeformedK_Factor))
-    f.writelines(line)
+        line = str(rev) + ',Belt Center Lift[mm]=', str(format(LiftBeltCenter*1000, '.3f'))+'\n'
+        f.writelines(line)
+        line = str(rev) + ',Belt Edge Lift[mm]=', str(format(LiftBeltEdge*1000, '.3f'))+'\n'
+        f.writelines(line)
+        line = str(rev) + ',Belt Edge Drop[mm]=', str(format(BTEdgeDrop*1000, '.3f'))+'\n'
+        f.writelines(line)
+        line = str(rev) + ',Weight[kg]=%.3f\n'%(float(Weight))
+        f.writelines(line)
+        line = str(rev) + ',Mold K-Factor=%.3f\n'%(float(InitialK_Factor))
+        f.writelines(line)
+        line = str(rev) + ',Inflated K-Factor=%.3f\n'%(float(DeformedK_Factor))
+        f.writelines(line)
 
-    f.close()
+        f.close()
     
 
     err.close()
@@ -1001,30 +1056,4 @@ if __name__ == "__main__":
         CheckExecution.getProgramTime(str(sys.argv[0]), "End")
     except:
         pass 
-
-
-    with open(str2DInp) as I: 
-        lines = I.readlines()
-    
-    new = open(strSimCode+"-deformed.inp", 'w')
-    nd = 0 
-    for line in lines: 
-        if "**" in line: 
-            new.write(line)
-            continue 
-        if "*" in line: 
-            if "*NODE" in line: 
-                nd=1 
-                new.write(line)
-                for n in DeformedTopNode.Node: 
-                    txt = "%10d, %.6e, %6e, %6e\n"%(n[0], n[3], n[2], n[1])
-                    new.write(txt)
-            else: 
-                nd = 0 
-                new.write(line)
-        else: 
-            if nd ==1: continue 
-            else: new.write(line)
-    new.close()
-            
 

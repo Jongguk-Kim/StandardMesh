@@ -482,8 +482,9 @@ class InpMaterial:
             for mat in mat_solid: 
                 # print (">> ", mat[0], self.tupElsetFECom[0])
                 if mat[0] == mset: 
-                    eqi_den = str(mat[1]*1000)
-                    self.lstInpLines.append('** %s equivalent density adapted. \n'%(mat[0]))
+                    if mat[1] > 0.0: 
+                        eqi_den = str(mat[1]*1000)
+                        self.lstInpLines.append('** %s equivalent density adapted. \n'%(mat[0]))
                     fd = 1
                     break 
             # if fd ==0: self.lstInpLines.append('** original density adapted.\n'
@@ -550,8 +551,9 @@ class InpMaterial:
                         ## mat_rebar = [ELSET, Topping density, Cord Density, Cord Area ]
                         for mat in mat_rebar: 
                             if mat[0] == self.tupElsetFECal[0]: 
-                                self.strSlctCalDensity  = str(mat[2])
-                                self.lstInpLines.append("** Equivalent density applied.\n")
+                                if mat[2] > 0: 
+                                    self.strSlctCalDensity  = str(mat[2]*1000)
+                                    self.lstInpLines.append("** Equivalent density applied.\n")
                                 break 
 
 
@@ -599,8 +601,9 @@ class InpMaterial:
                     ## mat_rebar = [ELSET, Topping density, Cord Density, Cord Area ]
                     for mat in mat_rebar: 
                         if mat[0] == self.tupElsetFECal[0]: 
-                            self.strSlctCalArea  = str(mat[3])
-                            self.lstInpLines.append("** Calculated Section area applied.\n")
+                            if mat[3]>0: 
+                                self.strSlctCalArea  = str(mat[3])
+                                self.lstInpLines.append("** Calculated Section area applied.\n")
                             break 
 
                     if self.tupElsetFECal[0] == 'CH1' and self.strProductLine != 'TBR':

@@ -4669,9 +4669,20 @@ def GetDOEFileName():
 ## PLOT Functions
 ########################################
 
-def plot_DetailLayout(filename, Element, Node, dpi=200, AddingNodes=[], rim=[], group='PCR', beadring='Tubeless'):# , Elset):
+def plot_DetailLayout(filename, Element, Node, dpi=200, AddingNodes=[], rim=[], group='PCR', beadring='Tubeless', writeProfile=0):# , Elset):
     
     edge_Outer = Element.OuterEdge(Node)
+    npn = np.array(Node.Node)
+    
+    outerNode=[]
+    cnt = 0 
+    for edge in edge_Outer.Edge:
+        if cnt ==0: 
+            ix = np.where(npn[:,0]==edge[0])[0][0]; N1 = npn[ix]
+            outerNode.append(N1)
+        ix = np.where(npn[:,0]==edge[1])[0][0]; N2 = npn[ix]
+        outerNode.append(N2)
+        cnt += 1
 
     for el in Element.Element:
         if el[6] ==2:
@@ -4707,7 +4718,7 @@ def plot_DetailLayout(filename, Element, Node, dpi=200, AddingNodes=[], rim=[], 
 
     ## rubber 
 
-    npn = np.array(Node.Node)
+    
     
     edge_Components = EDGE()
 
@@ -4747,15 +4758,17 @@ def plot_DetailLayout(filename, Element, Node, dpi=200, AddingNodes=[], rim=[], 
     textsize = 8
 
     color = 'black'
+    
     for edge in edge_Outer.Edge:
         ix = np.where(npn[:,0]==edge[0])[0][0]; N1 = npn[ix]
         ix = np.where(npn[:,0]==edge[1])[0][0]; N2 = npn[ix]
-        plt.plot([N1[2], N2[2]], [N1[3], N2[3]], color, lw=LineWidth)
+        plt.plot([N1[2], N2[2]],[math.sqrt(N1[1]**2 + N1[3]**2), math.sqrt(N2[1]**2 + N2[3]**2)], color, lw=LineWidth)
+        
     color = 'gray'
     for edge in edge_Components.Edge:
         ix = np.where(npn[:,0]==edge[0])[0][0]; N1 = npn[ix]
         ix = np.where(npn[:,0]==edge[1])[0][0]; N2 = npn[ix]
-        plt.plot([N1[2], N2[2]], [N1[3], N2[3]], color, lw=LineWidth/2)
+        plt.plot([N1[2], N2[2]], [math.sqrt(N1[1]**2 + N1[3]**2), math.sqrt(N2[1]**2 + N2[3]**2)], color, lw=LineWidth/2)
 
     nx=[]; ny=[]
     for nd in AddingNodes:
@@ -4775,7 +4788,16 @@ def plot_DetailLayout(filename, Element, Node, dpi=200, AddingNodes=[], rim=[], 
 
     plt.scatter(nx, ny, c='r', s=1.2)
     plt.savefig(filename, dpi=dpi)
-    plt.clf()        
+    plt.clf()  
+
+    if writeProfile ==1: 
+        fp = open(filename[:-3]+"txt", 'w')
+        for n in outerNode: 
+            n[3] = math.sqrt(n[1]**2+n[3]**2)
+            n[1] = 0.0
+            fp.write("%10d, %.6e, %.6e, %6e\n"%(n[0], n[1], n[2], n[3]))
+        fp.close()
+          
 
 def Angle_3nodes(n1=[], n2=[], n3=[], xy=0): ## n2 : mid node 
     v1 = [n1[1]-n2[1], n1[2]-n2[2], n1[3]-n2[3] ]

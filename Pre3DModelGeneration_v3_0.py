@@ -62,11 +62,12 @@ def CheckFileName(fileName, ErrorFile):
     #
     # ############################################################################
 
-def Equivalent_density_calculation(cute_mesh, filename=""): 
+def Equivalent_density_calculation(cute_mesh, filename="", sns=""): 
     # print ("\n************************************************** ")
     # print ("** Equilivalent Density Calculation")
     # print ("************************************************** ")
     PI = 3.14159265358979
+
     with open(cute_mesh) as MS: 
         lines = MS.readlines()
     cmd = ''
@@ -84,8 +85,6 @@ def Equivalent_density_calculation(cute_mesh, filename=""):
                 start = 1
 
             if "***" in line: continue
-           
-            
 
             if "COMPONENTS EXTRUDED" in line and start ==1: 
                 cmd = 'solid'
@@ -132,39 +131,53 @@ def Equivalent_density_calculation(cute_mesh, filename=""):
             name = sd[0].split("(")[0].strip()
             name = name[2:]
             compound = sd[1]
-            density = float(sd[2]) * float(sd[3]) 
-            f.write("%6s, %7s, %.5f, %.3e, %.5f\n"%(name, compound, density, float(sd[5])/10**9, float(sd[6])))
+            try: 
+                density = float(sd[2]) * float(sd[3]) 
+                f.write("%6s, %7s, %.5f, %.3e, %.5f\n"%(name, compound, density, float(sd[5])/10**9, float(sd[6])))
+            except:
+                density = 0.0 
+                sd[5] = 0.0 
+                sd[6]= 0.0 
+                f.write("%6s, %7s, %.5f, %.3e, %.5f\n"%(name, compound, density, float(sd[5])/10**9, float(sd[6])))
     if len(bdc) > 0: 
         for sd in bdc: 
             name = sd[0].split("(")[0].strip()
             name = name[2:]
             compound = sd[1]
-            density = float(sd[3]) / float(sd[2]) * 10**9 /1000
-            f.write("%6s, %7s, %.5f, %.3e, %.5f\n"%(name, compound, density, float(sd[2]) / 10**9, float(sd[3]) ))
+            try: 
+                density = float(sd[3]) / float(sd[2]) * 10**9 /1000
+                f.write("%6s, %7s, %.5f, %.3e, %.5f\n"%(name, compound, density, float(sd[2]) / 10**9, float(sd[3]) ))
+            except:
+                density = 0.0 
+                sd[2] = 0.0 
+                sd[3]= 0.0
+                f.write("%6s, %7s, %.5f, %.3e, %.5f\n"%(name, compound, density, float(sd[2]) / 10**9, float(sd[3]) ))
     f.write("** CMP, CODE, density, Volume(m3), Weight(kg)\n")
 
     f.write("*REBAR\n")
     CCT = [];     BTT = [];     JEC = []; JFC=[]
-    BDC = [];     SCT = [];     NCT = []
+    BDC = [];     SCT = [];     NCT = []; PK2=[]; PK1=[]; FLI =[]; RFM=[]
     if len(roll) > 0: 
         for sd in roll: 
             name = sd[0].split("(")[0].strip()
             name = name[2:]
             code =sd[1]
             structure = sd[2]
+            
+            m = 3
+            try:
+                EPI = float(sd[m]);        m+=1
+            except:
+                m+=1
+                EPI = float(sd[m]);        m+=1
+                
+            dia = float(sd[m])/1000.0;        m+=1
+            topping = sd[m];        m+=1
+            ga = float(sd[m]) /1000;        m+=1
+            cf = float(sd[m]);        m+=1
+            rf = float(sd[m]);        m+=3
+            
             try: 
-                m = 3
-                try:
-                    EPI = float(sd[m]);        m+=1
-                except:
-                    m+=1
-                    EPI = float(sd[m]);        m+=1
-                    
-                dia = float(sd[m])/1000.0;        m+=1
-                topping = sd[m];        m+=1
-                ga = float(sd[m]) /1000;        m+=1
-                cf = float(sd[m]);        m+=1
-                rf = float(sd[m]);        m+=3
                 wt = float(sd[m])
                 if "ES" in code: 
                     Area = Area_steel_cord(structure)
@@ -177,32 +190,53 @@ def Equivalent_density_calculation(cute_mesh, filename=""):
                 real_rubber_volume = ga - Area * 39.37 * EPI 
                 topping_real_density = rf*10 / real_rubber_volume /1000
 
-                # print ("real density ", topping_real_density)
-
-                f.write("%6s, %8s, %.5f, %.5f, %.5e, %.5f, %.5f, %.5f, %.3f, %.3f, %.3e\n"%(\
-                        name, code, toping_density, cord_density, line_density, topping_real_density, rf, cf, wt * cf/(cf+rf), wt * rf/(cf+rf), Area))
-
-                if "C01" in name:   CCT = [name, topping, toping_density, float(sd[10])/10**9, wt * rf/(cf+rf)]
-                if "BT2" in name:   BTT = [name, topping, toping_density, float(sd[10])/10**9, wt * rf/(cf+rf)]
-                if "JEC" in name:   JEC = [name, topping, toping_density, float(sd[10])/10**9, wt * rf/(cf+rf)]
-                if "JFC" in name:   JFC = [name, topping, toping_density, float(sd[10])/10**9, wt * rf/(cf+rf)]
-                # if "BDC" in name:   BDC = [name, topping, toping_density, float(sd[10])/10**9, wt * rf/(cf+rf)]
-                if "CH1" in name:   SCT = [name, topping, toping_density, float(sd[10])/10**9, wt * rf/(cf+rf)]
-                if "CH2" in name:   NCT = [name, topping, toping_density, float(sd[10])/10**9, wt * rf/(cf+rf)]
-                
             except:
-                pass 
+                wt = 0.0 
+                toping_density = 0.0
+                cord_density = 0.0
+                line_density = 0.0 
+                real_rubber_volume = 0.0 
+                topping_real_density = 0.0 
+                rf =0.0 
+                cf = 0.0001
+                Area = 0 
 
-    f.write("** CMP, CODE, Equi-Toping Density, Equi-Cord Dentidy, Line Density, Real-topping density, Rubber factor, cord factor, volume, cord_wt, rubber_wt, area\n")
+            
+
+            # print ("real density ", topping_real_density)
+
+            f.write("%6s, %8s, %.5f, %.5f, %.5e, %.5f, %.5f, %.5f, %.3f, %.3f, %.3e\n"%(\
+                    name, code, toping_density, cord_density, line_density, topping_real_density, rf, cf, wt * cf/(cf+rf), wt * rf/(cf+rf), Area))
+
+            m -= 1 ## sd[m] : total volume 
+            if "C01" in name:   CCT = [name, topping, toping_density, float(sd[m])/10**9, wt * rf/(cf+rf)]
+            if "BT2" in name:   BTT = [name, topping, toping_density, float(sd[m])/10**9, wt * rf/(cf+rf)]
+            if "JEC" in name:   JEC = [name, topping, toping_density, float(sd[m])/10**9, wt * rf/(cf+rf)]
+            if "JFC" in name:   JFC = [name, topping, toping_density, float(sd[m])/10**9, wt * rf/(cf+rf)]
+            # if "BDC" in name:   BDC = [name, topping, toping_density, float(sd[10])/10**9, wt * rf/(cf+rf)]
+            if "CH1" in name:   SCT = [name, topping, toping_density, float(sd[m])/10**9, wt * rf/(cf+rf)]
+            if "CH2" in name:   NCT = [name, topping, toping_density, float(sd[m])/10**9, wt * rf/(cf+rf)]
+            if "PK1" in name:   PK1 = [name, topping, toping_density, float(sd[m])/10**9, wt * rf/(cf+rf)]
+            if "PK2" in name:   PK2 = [name, topping, toping_density, float(sd[m])/10**9, wt * rf/(cf+rf)]
+            if "RFM" in name:   RFM = [name, topping, toping_density, float(sd[m])/10**9, wt * rf/(cf+rf)]
+            if "FLI" in name:   FLI = [name, topping, toping_density, float(sd[m])/10**9, wt * rf/(cf+rf)]
+            
+                
+
+    f.write("** CMP, CODE, Equi-Topping Density, Equi-Cord Dentidy, Line Density, Real-topping density, Rubber factor, cord factor, volume, cord_wt, rubber_wt, area\n")
 
     f.write("*SOLID\n")
     if len(CCT) > 0: f.write("%6s, %7s, %.5f, %.3e, %.5f\n"%('CCT', CCT[1], CCT[2], CCT[3], CCT[4] ))
     if len(BTT) > 0: f.write("%6s, %7s, %.5f, %.3e, %.5f\n"%('BTT', BTT[1], BTT[2], BTT[3], BTT[4] ))
     if len(JEC) > 0 and len(JFC) ==0 : f.write("%6s, %7s, %.5f, %.3e, %.5f\n"%('JBT', JEC[1], JEC[2], JEC[3], JEC[4] ))
     if len(JFC) > 0: f.write("%6s, %7s, %.5f, %.3e, %.5f\n"%('JBT', JFC[1], JFC[2], JFC[3], JFC[4] ))
-    # if len(BDC) > 0: f.write("%6s, %7s, %.5f, %.3e, %.5f\n"%("BDT", BDC[1], BDC[2], BDC[3], BDC[4] ))
+    # if len(BDC) > 0: f.write("%6s, %7s, %.5f, %.3e, %.5f\n"%("BDC", BDC[1], BDC[2], BDC[3], BDC[4] ))
     if len(SCT) > 0: f.write("%6s, %7s, %.5f, %.3e, %.5f\n"%('SCT', SCT[1], SCT[2], SCT[3], SCT[4] ))
     if len(NCT) > 0: f.write("%6s, %7s, %.5f, %.3e, %.5f\n"%('NCT', NCT[1], NCT[2], NCT[3], NCT[4] ))
+    if len(PK1) > 0: f.write("%6s, %7s, %.5f, %.3e, %.5f\n"%('SRTT', PK1[1], PK1[2], PK1[3], PK1[4] ))
+    if len(PK2) > 0: f.write("%6s, %7s, %.5f, %.3e, %.5f\n"%('SRTT', PK2[1], PK2[2], PK2[3], PK2[4] ))
+    if len(FLI) > 0: f.write("%6s, %7s, %.5f, %.3e, %.5f\n"%('SRTT', FLI[1], FLI[2], FLI[3], FLI[4] ))
+    if len(RFM) > 0: f.write("%6s, %7s, %.5f, %.3e, %.5f\n"%('SRTT', RFM[1], RFM[2], RFM[3], RFM[4] ))
 
     f.close()
     # print ("************************************************** ")
@@ -417,7 +451,7 @@ if __name__=='__main__':
         mesh2dpath = 0
         strJobDir = os.getcwd()
 
-        Equivalent_density_calculation(Mesh2DInpFileName, filename="density.txt")
+        Equivalent_density_calculation(Mesh2DInpFileName, filename="density.txt", sns=snsFile[0])
 
 
     else:
@@ -466,7 +500,7 @@ if __name__=='__main__':
         print ("## Virtual Tire No. : %s"%(strVirtualTireCode))
         print ("## Simulation Code  : %s"%(SnsInfo["AnalysisInformation"]["SimulationCode"]))
         
-        Equivalent_density_calculation(Mesh2DInpFileName, filename="density.txt")
+        Equivalent_density_calculation(Mesh2DInpFileName, filename="density.txt", sns=snsFile[0])
 
 
 
